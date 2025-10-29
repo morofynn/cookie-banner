@@ -29,11 +29,23 @@ function initCookieIframes() {
     createPlaceholder(iframe, src, width, height, altImg);
   });
 
-  // Check existing consent
-  const consent = localStorage.getItem('cookiesAccepted');
-  
-  if (consent === 'true') enableIframes(); 
-  else if (consent === 'false') showPlaceholders();
+// Check existing consent
+const consent = localStorage.getItem('cookiesAccepted');
+
+if (consent === 'true') {
+    enableIframes();
+} else if (consent === 'false') {
+    showPlaceholders();
+} else {
+    // No consent state yet
+    showPlaceholders();
+    
+    // Simulate a click on the cookie icon
+    const cookieIcon = document.querySelector('#cookie-icon'); // adjust selector
+    if (cookieIcon) {
+        cookieIcon.click();
+    }
+}
 
 
   // Buttons
