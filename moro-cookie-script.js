@@ -1,7 +1,3 @@
-<!-- Dieser Code muss in den Footer unter Site Settings -->
-
-
-
 <!-- Cookie-Consent + iFrame-Blocking -->
 
   
