@@ -5,7 +5,6 @@
 <!-- Cookie-Consent + iFrame-Blocking -->
 
 
-<script>
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initCookieIframes);
 } else {
@@ -134,4 +133,4 @@ function showPlaceholders() {
 }
 
 
-</script>
+
