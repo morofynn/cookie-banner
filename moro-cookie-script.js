@@ -4,7 +4,8 @@
 
 <!-- Cookie-Consent + iFrame-Blocking -->
 
-
+document.addEventListener("DOMContentLoaded", () => {
+  
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initCookieIframes);
 } else {
@@ -132,5 +133,5 @@ function showPlaceholders() {
   });
 }
 
-
+});
 
