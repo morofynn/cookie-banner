@@ -32,8 +32,21 @@ function initCookieIframes() {
 
   // Check existing consent
   const consent = localStorage.getItem('cookiesAccepted');
-  if (consent === 'true') enableIframes();
-  else if (consent === 'false') showPlaceholders();
+
+  const banner = document.getElementById('cookie-banner');
+
+if (consent === 'true') {
+  enableIframes();
+  if (banner) banner.style.display = 'none';
+} else if (consent === 'false') {
+  showPlaceholders();
+  if (banner) banner.style.display = 'none';
+} else {
+  // First visit: show banner
+  if (banner) banner.style.display = 'block';
+  showPlaceholders();
+}
+
 
   // Buttons
   const acceptBtn = document.querySelector('#accept-btn');
