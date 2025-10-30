@@ -72,18 +72,39 @@ function createPlaceholder(el, src, width, height, altImg) {
   placeholder.setAttribute('data-height', height);
   if (altImg) placeholder.setAttribute('data-alt-img', altImg);
 
+  // 🔹 Pull styles from .iframe-placeholder-demo
+  const demoEl = document.querySelector('.iframe-placeholder-demo');
+  let computedStyles = {};
+  if (demoEl) {
+    const styles = window.getComputedStyle(demoEl);
+    computedStyles = {
+      textAlign: styles.textAlign,
+      backgroundColor: styles.backgroundColor,
+      fontFamily: styles.fontFamily,
+      color: styles.color,
+      fontSize: styles.fontSize,
+      lineHeight: styles.lineHeight,
+      fontWeight: styles.fontWeight,
+    };
+  }
+  // set basic layout styles
   placeholder.style.cssText = `
+    z-index: auto;
     display:flex;
     justify-content:center;
     align-items:center;
+    padding: 1rem;
     width:${width};
     height:${height};
-    background:#f6f6f6;
-    color:#333;
-    border:1px solid #e0e0e0;
-    text-align:center;
     overflow:hidden;
     position:relative;
+    text-align: ${computedStyles.textAlign || 'center'};
+    background-color: ${computedStyles.backgroundColor || '#f6f6f6'};
+    font-family: ${computedStyles.fontFamily || 'sans-serif'};
+    color: ${computedStyles.color || '#333'};
+    font-size: ${computedStyles.fontSize || '1rem'};
+    line-height: ${computedStyles.lineHeight || '1.2'};
+    font-weight: ${computedStyles.fontWeight || '400'};
   `;
 
   if (altImg) {
@@ -102,6 +123,7 @@ function createPlaceholder(el, src, width, height, altImg) {
 
   el.parentNode.replaceChild(placeholder, el);
 }
+
 
 // 🔹 Enable iframes
 function enableIframes() {
