@@ -63,7 +63,6 @@ if (consent === 'true') {
   }
 }
 
-// 🔹 Create placeholder
 function createPlaceholder(el, src, width, height, altImg) {
   const placeholder = document.createElement('div');
   placeholder.className = 'iframe-placeholder';
@@ -72,19 +71,42 @@ function createPlaceholder(el, src, width, height, altImg) {
   placeholder.setAttribute('data-height', height);
   if (altImg) placeholder.setAttribute('data-alt-img', altImg);
 
+  // Set basic layout styles
   placeholder.style.cssText = `
+    z-index: auto;
     display:flex;
     justify-content:center;
     align-items:center;
+    padding: 1rem;
     width:${width};
     height:${height};
-    background:#f6f6f6;
-    color:#333;
-    border:1px solid #e0e0e0;
-    text-align:center;
     overflow:hidden;
     position:relative;
   `;
+
+  // 🔹 Pull computed styles from .iframe-placeholder
+  const temp = document.createElement('div');
+  temp.className = 'iframe-placeholder';
+  document.body.appendChild(temp);
+  const cs = getComputedStyle(temp);
+
+  placeholder.style.textAlign = cs.textAlign;
+  placeholder.style.backgroundColor = cs.backgroundColor;
+  placeholder.style.fontFamily = cs.fontFamily;
+  placeholder.style.color = cs.color;
+  placeholder.style.fontSize = cs.fontSize;
+  placeholder.style.lineHeight = cs.lineHeight;
+  placeholder.style.fontWeight = cs.fontWeight;
+
+  // 🔹 Set innerText from an existing .iframe-placeholder on the page (if any)
+  const referenceTextDiv = document.querySelector('.iframe-placeholder');
+  if (referenceTextDiv && !altImg) {
+    placeholder.innerText = referenceTextDiv.innerText;
+  } else if (!altImg) {
+    placeholder.innerText = 'Bitte stimmen Sie der Verwendung von Cookies zu, um den Inhalt zu laden.';
+  }
+
+  document.body.removeChild(temp);
 
   if (altImg) {
     const img = document.createElement('img');
@@ -96,8 +118,6 @@ function createPlaceholder(el, src, width, height, altImg) {
       object-fit:cover;
     `;
     placeholder.appendChild(img);
-  } else {
-    placeholder.innerText = 'Bitte stimmen Sie der Verwendung von Cookies zu, um den Inhalt zu laden.';
   }
 
   el.parentNode.replaceChild(placeholder, el);
