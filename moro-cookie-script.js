@@ -1,4 +1,4 @@
-<!-- Cookie-Consent + iFrame-Blocking -->
+m<!-- Cookie-Consent + iFrame-Blocking -->
 
   
 if (document.readyState === 'loading') {
@@ -86,7 +86,7 @@ function createPlaceholder(el, src, width, height, altImg) {
 
   // 🔹 Pull computed styles from .iframe-placeholder
   const temp = document.createElement('div');
-  temp.className = 'iframe-placeholder';
+  temp.className = 'iframe-placeholder-demo';
   document.body.appendChild(temp);
   const cs = getComputedStyle(temp);
 
@@ -99,7 +99,7 @@ function createPlaceholder(el, src, width, height, altImg) {
   placeholder.style.fontWeight = cs.fontWeight;
 
   // 🔹 Set innerText from an existing .iframe-placeholder on the page (if any)
-  const referenceTextDiv = document.querySelector('.iframe-placeholder');
+  const referenceTextDiv = document.querySelector('.iframe-placeholder-demo');
   if (referenceTextDiv && !altImg) {
     placeholder.innerText = referenceTextDiv.innerText;
   } else if (!altImg) {
