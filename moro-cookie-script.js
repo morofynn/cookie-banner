@@ -72,9 +72,10 @@ function createPlaceholder(el, src, width, height, altImg) {
   placeholder.setAttribute('data-height', height);
   if (altImg) placeholder.setAttribute('data-alt-img', altImg);
 
-  // 🔹 Pull styles from .iframe-placeholder-demo
+  // 🔹 Pull styles and text from .iframe-placeholder-demo
   const demoEl = document.querySelector('.iframe-placeholder-demo');
   let computedStyles = {};
+  let demoText = 'Bitte stimmen Sie der Verwendung von Cookies zu, um den Inhalt zu laden.'; // fallback
   if (demoEl) {
     const styles = window.getComputedStyle(demoEl);
     computedStyles = {
@@ -86,8 +87,9 @@ function createPlaceholder(el, src, width, height, altImg) {
       lineHeight: styles.lineHeight,
       fontWeight: styles.fontWeight,
     };
+    demoText = demoEl.innerText || demoText;
   }
-  // set basic layout styles
+  // set styles
   placeholder.style.cssText = `
     z-index: auto;
     display:flex;
@@ -106,11 +108,11 @@ function createPlaceholder(el, src, width, height, altImg) {
     line-height: ${computedStyles.lineHeight || '1.2'};
     font-weight: ${computedStyles.fontWeight || '400'};
   `;
-
+  //placeholder alt image or text logic
   if (altImg) {
     const img = document.createElement('img');
     img.src = altImg;
-    img.alt = 'Bitte stimmen Sie der Verwendung von Cookies zu, um den Inhalt zu laden.';
+    img.alt = demoText;
     img.style.cssText = `
       width:100%;
       height:100%;
@@ -118,12 +120,11 @@ function createPlaceholder(el, src, width, height, altImg) {
     `;
     placeholder.appendChild(img);
   } else {
-    placeholder.innerText = 'Bitte stimmen Sie der Verwendung von Cookies zu, um den Inhalt zu laden.';
+    placeholder.innerText = demoText;
   }
 
   el.parentNode.replaceChild(placeholder, el);
 }
-
 
 // 🔹 Enable iframes
 function enableIframes() {
