@@ -95,7 +95,7 @@ function createPlaceholder(el, src, width, height, altImg) {
     display:flex;
     justify-content:center;
     align-items:center;
-    padding: 1rem;
+    padding: ${altImg ? '0' : '1rem'};
     width:${width};
     height:${height};
     overflow:hidden;
