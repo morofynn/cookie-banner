@@ -38,8 +38,10 @@ function initCookieIframes() {
     resetCheckboxes();
     showPlaceholders();
   } else {
-    // first time: show placeholders and optionally open banner
+    // Noch keine Entscheidung → Platzhalter zeigen, Banner öffnen und Funktional optisch vorwählen
     showPlaceholders();
+    setVisualPrechecked(); // 👈 optische Vorauswahl aktivieren
+
     const cookieIcon = document.querySelector('#cookie-icon');
     if (cookieIcon) cookieIcon.click();
   }
@@ -70,6 +72,22 @@ function initCookieIframes() {
 /* -------------------------
    Helpers for Webflow checkboxes
    ------------------------- */
+
+// 🔹 Setzt nur die optische Vorauswahl (ohne technische Aktivierung)
+function setVisualPrechecked() {
+  // Beispiel: Funktional optisch vorgewählt anzeigen
+  const wrapper = document.querySelector('.opt-in-wrapper.is-funktional');
+  if (!wrapper) return;
+
+  const visual = wrapper.querySelector('.w-checkbox-input');
+  if (visual) {
+    visual.classList.add('w--redirected-checked'); // zeigt Haken an
+  }
+
+  // input bleibt technisch inaktiv
+  const input = wrapper.querySelector('input[type="checkbox"]');
+  if (input) input.checked = false;
+}
 
 // Liest den Status der (unsichtbaren) input[type=checkbox] in den Webflow-Wrappers
 function getAcceptedCategories() {
