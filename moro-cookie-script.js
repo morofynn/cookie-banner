@@ -1,6 +1,5 @@
 <!-- Cookie-Consent + iFrame-Blocking -->
 
-
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initCookieIframes);
 } else {
@@ -14,7 +13,7 @@ function initCookieIframes() {
     const width = iframe.getAttribute('width') || iframe.style.width || '100%';
     const height = iframe.getAttribute('height') || iframe.style.height || '100%';
     const altImg = iframe.getAttribute('alt-img');
-    const category = iframe.getAttribute('cookiecategory'); 
+    const category = iframe.getAttribute('cookiecategory');
 
     iframe.setAttribute('data-src', src);
     iframe.setAttribute('data-width', width);
@@ -31,14 +30,17 @@ function initCookieIframes() {
   const acceptedCategories = JSON.parse(localStorage.getItem('acceptedCategories') || '[]');
 
   if (consent === 'true') {
-    setCheckboxes(acceptedCategories); // ✅ Webflow-kompatibel
+    // Set UI & inputs, then load iframes
+    setCheckboxes(acceptedCategories);
     enableIframes(acceptedCategories);
   } else if (consent === 'false') {
+    // Ensure UI unchecked and placeholders shown
     resetCheckboxes();
     showPlaceholders();
   } else {
+    // first time: show placeholders and optionally open banner
     showPlaceholders();
-    const cookieIcon = document.querySelector('#cookie-icon'); 
+    const cookieIcon = document.querySelector('#cookie-icon');
     if (cookieIcon) cookieIcon.click();
   }
 
@@ -48,10 +50,10 @@ function initCookieIframes() {
 
   if (acceptBtn) {
     acceptBtn.addEventListener('click', function() {
-      const acceptedCategories = getAcceptedCategories();
+      const accepted = getAcceptedCategories();
       localStorage.setItem('cookiesAccepted', 'true');
-      localStorage.setItem('acceptedCategories', JSON.stringify(acceptedCategories));
-      enableIframes(acceptedCategories);
+      localStorage.setItem('acceptedCategories', JSON.stringify(accepted));
+      enableIframes(accepted);
     });
   }
 
@@ -65,33 +67,88 @@ function initCookieIframes() {
   }
 }
 
-// 🔹 Get selected categories from Webflow checkbox inputs
+/* -------------------------
+   Helpers for Webflow checkboxes
+   ------------------------- */
+
+// Liest den Status der (unsichtbaren) input[type=checkbox] in den Webflow-Wrappers
 function getAcceptedCategories() {
   const categories = [];
-  const funktionalInput = document.querySelector('.opt-in-wrapper.is-funktional input[type="checkbox"]');
+
+  const funktionalInput = queryWrapperInput('is-funktional');
   if (funktionalInput?.checked) categories.push('funktional');
 
-  const targetingInput = document.querySelector('.opt-in-wrapper.is-targeting input[type="checkbox"]');
+  const targetingInput = queryWrapperInput('is-targeting');
   if (targetingInput?.checked) categories.push('targeting');
 
   return categories;
 }
 
-// 🔹 Set checkbox states based on accepted categories
+// Setzt Checkboxen (input.checked) und passt die sichtbare DIV-UI an
 function setCheckboxes(categories) {
-  const funktionalInput = document.querySelector('.opt-in-wrapper.is-funktional input[type="checkbox"]');
-  if (funktionalInput) funktionalInput.checked = categories.includes('funktional');
-
-  const targetingInput = document.querySelector('.opt-in-wrapper.is-targeting input[type="checkbox"]');
-  if (targetingInput) targetingInput.checked = categories.includes('targeting');
+  setWrapperCheckbox('is-funktional', categories.includes('funktional'));
+  setWrapperCheckbox('is-targeting', categories.includes('targeting'));
 }
 
-// 🔹 Reset all checkboxes
+// Entfernt Haken in allen opt-in-wrappers (sichtbar + input)
 function resetCheckboxes() {
-  document.querySelectorAll('.opt-in-wrapper input[type="checkbox"]').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.opt-in-wrapper').forEach(wrapper => {
+    const input = wrapper.querySelector('input[type="checkbox"]');
+    if (input) input.checked = false;
+
+    // sichtbares DIV innerhalb des wrappers (Webflow default structure)
+    const visual = wrapper.querySelector('.w-checkbox-input');
+    if (visual) {
+      visual.classList.remove('w--redirected-checked');
+    }
+
+    // defensive cleanup
+    wrapper.classList.remove('w--redirected-checked');
+  });
 }
 
-// 🔹 Create placeholder
+// Utility: finde das input[type=checkbox] innerhalb eines wrappers mit Klasse is-...
+function queryWrapperInput(isClass) {
+  return document.querySelector('.opt-in-wrapper.' + isClass + ' input[type="checkbox"]');
+}
+
+// Utility: setze einen wrapper (isClass) auf checked = bool und toggles sichtbare UI
+function setWrapperCheckbox(isClass, boolChecked) {
+  const wrapper = document.querySelector('.opt-in-wrapper.' + isClass);
+  if (!wrapper) return;
+
+  const input = wrapper.querySelector('input[type="checkbox"]');
+  const visual = wrapper.querySelector('.w-checkbox-input');
+
+  if (input) {
+    input.checked = !!boolChecked;
+    // trigger change event, falls Webflow darauf reagiert
+    const ev = new Event('change', { bubbles: true });
+    input.dispatchEvent(ev);
+  }
+
+  // sichtbares Element updaten
+  if (visual) {
+    if (boolChecked) {
+      visual.classList.add('w--redirected-checked');
+    } else {
+      visual.classList.remove('w--redirected-checked');
+    }
+  }
+
+  // optional: wrapper ebenfalls aktualisieren
+  if (boolChecked) {
+    wrapper.classList.add('w--redirected-checked');
+  } else {
+    wrapper.classList.remove('w--redirected-checked');
+  }
+}
+
+/* -------------------------
+   Placeholder / iframe logic
+   ------------------------- */
+
+// Create placeholder
 function createPlaceholder(el, src, width, height, altImg, category) {
   const placeholder = document.createElement('div');
   placeholder.className = 'iframe-placeholder';
@@ -150,7 +207,7 @@ function createPlaceholder(el, src, width, height, altImg, category) {
   el.parentNode.replaceChild(placeholder, el);
 }
 
-// 🔹 Enable iframes for selected categories
+// Enable iframes for accepted categories
 function enableIframes(acceptedCategories = []) {
   document.querySelectorAll('.iframe-placeholder').forEach(function(div) {
     const category = div.getAttribute('data-cookiecategory');
@@ -161,14 +218,14 @@ function enableIframes(acceptedCategories = []) {
       iframe.setAttribute('height', div.getAttribute('data-height'));
       const altImg = div.getAttribute('data-alt-img');
       if (altImg) iframe.setAttribute('alt-img', altImg);
-      iframe.setAttribute('cookiecategory', category);
+      if (category) iframe.setAttribute('cookiecategory', category);
       iframe.style.border = '0';
       div.parentNode.replaceChild(iframe, div);
     }
   });
 }
 
-// 🔹 Show placeholders (convert back from iframe if needed)
+// Show placeholders (convert back from iframe if needed)
 function showPlaceholders() {
   document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
     if (el.tagName === 'IFRAME') {
