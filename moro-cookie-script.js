@@ -1,4 +1,6 @@
-<!-- Cookie-Consent + iFrame-Blocking -->
+/* -------------------------
+   Cookie Banner MORO
+   ------------------------- */
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initCookieIframes);
@@ -30,17 +32,15 @@ function initCookieIframes() {
   const acceptedCategories = JSON.parse(localStorage.getItem('acceptedCategories') || '[]');
 
   if (consent === 'true') {
-    // Set UI & inputs, then load iframes
     setCheckboxes(acceptedCategories);
     enableIframes(acceptedCategories);
   } else if (consent === 'false') {
-    // Ensure UI unchecked and placeholders shown
     resetCheckboxes();
     showPlaceholders();
   } else {
-    // Noch keine Entscheidung → Platzhalter zeigen, Banner öffnen und Funktional optisch vorwählen
+    // Noch keine Entscheidung → Banner öffnen und beide Kategorien optisch vorwählen
     showPlaceholders();
-    setVisualPrechecked(); // 👈 optische Vorauswahl aktivieren
+    setVisualPrechecked();
 
     const cookieIcon = document.querySelector('#cookie-icon');
     if (cookieIcon) cookieIcon.click();
@@ -52,6 +52,9 @@ function initCookieIframes() {
 
   if (acceptBtn) {
     acceptBtn.addEventListener('click', function() {
+      // 🔹 Vorher alle optisch markierten Checkboxen technisch aktivieren
+      precheckedToChecked();
+
       const accepted = getAcceptedCategories();
       localStorage.setItem('cookiesAccepted', 'true');
       localStorage.setItem('acceptedCategories', JSON.stringify(accepted));
@@ -73,106 +76,74 @@ function initCookieIframes() {
    Helpers for Webflow checkboxes
    ------------------------- */
 
-// 🔹 Setzt nur die optische Vorauswahl (ohne technische Aktivierung)
+// 🔹 Optische Vorauswahl setzen (Pre-checked, technisch noch nicht aktiv)
 function setVisualPrechecked() {
-  // Funktional optisch vorgewählt
-  const funktionalWrapper = document.querySelector('.opt-in-wrapper.is-funktional');
-  if (funktionalWrapper) {
-    const visualF = funktionalWrapper.querySelector('.w-checkbox-input');
-    if (visualF) visualF.classList.add('w--redirected-checked');
-    const inputF = funktionalWrapper.querySelector('input[type="checkbox"]');
-    if (inputF) inputF.checked = false; // technisch noch nicht aktiv
-  }
-
-  // Targeting optisch vorgewählt
-  const targetingWrapper = document.querySelector('.opt-in-wrapper.is-targeting');
-  if (targetingWrapper) {
-    const visualT = targetingWrapper.querySelector('.w-checkbox-input');
-    if (visualT) visualT.classList.add('w--redirected-checked');
-    const inputT = targetingWrapper.querySelector('input[type="checkbox"]');
-    if (inputT) inputT.checked = false; // technisch noch nicht aktiv
-  }
-}
-
-
-// Liest den Status der (unsichtbaren) input[type=checkbox] in den Webflow-Wrappers
-function getAcceptedCategories() {
-  const categories = [];
-
-  const funktionalInput = queryWrapperInput('is-funktional');
-  if (funktionalInput?.checked) categories.push('funktional');
-
-  const targetingInput = queryWrapperInput('is-targeting');
-  if (targetingInput?.checked) categories.push('targeting');
-
-  return categories;
-}
-
-// Setzt Checkboxen (input.checked) und passt die sichtbare DIV-UI an
-function setCheckboxes(categories) {
-  setWrapperCheckbox('is-funktional', categories.includes('funktional'));
-  setWrapperCheckbox('is-targeting', categories.includes('targeting'));
-}
-
-// Entfernt Haken in allen opt-in-wrappers (sichtbar + input)
-function resetCheckboxes() {
-  document.querySelectorAll('.opt-in-wrapper').forEach(wrapper => {
-    const input = wrapper.querySelector('input[type="checkbox"]');
-    if (input) input.checked = false;
-
-    // sichtbares DIV innerhalb des wrappers (Webflow default structure)
-    const visual = wrapper.querySelector('.w-checkbox-input');
-    if (visual) {
-      visual.classList.remove('w--redirected-checked');
+  ['funktional','targeting'].forEach(category => {
+    const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
+    if (wrapper) {
+      const visual = wrapper.querySelector('.w-checkbox-input');
+      if (visual) visual.classList.add('w--redirected-checked');
+      const input = wrapper.querySelector('input[type="checkbox"]');
+      if (input) input.checked = false;
     }
-
-    // defensive cleanup
-    wrapper.classList.remove('w--redirected-checked');
   });
 }
 
-// Utility: finde das input[type=checkbox] innerhalb eines wrappers mit Klasse is-...
-function queryWrapperInput(isClass) {
-  return document.querySelector('.opt-in-wrapper.' + isClass + ' input[type="checkbox"]');
+// 🔹 Vor dem Akzeptieren: alle optisch markierten Checkboxen technisch aktivieren
+function precheckedToChecked() {
+  ['funktional','targeting'].forEach(category => {
+    const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
+    if (wrapper) {
+      const visual = wrapper.querySelector('.w-checkbox-input');
+      const input = wrapper.querySelector('input[type="checkbox"]');
+      if (visual && visual.classList.contains('w--redirected-checked') && input) {
+        input.checked = true;
+      }
+    }
+  });
 }
 
-// Utility: setze einen wrapper (isClass) auf checked = bool und toggles sichtbare UI
-function setWrapperCheckbox(isClass, boolChecked) {
-  const wrapper = document.querySelector('.opt-in-wrapper.' + isClass);
-  if (!wrapper) return;
+// Liest den Status der Checkboxen
+function getAcceptedCategories() {
+  const categories = [];
+  ['funktional','targeting'].forEach(category => {
+    const input = document.querySelector('.opt-in-wrapper.is-' + category + ' input[type="checkbox"]');
+    if (input?.checked) categories.push(category);
+  });
+  return categories;
+}
 
-  const input = wrapper.querySelector('input[type="checkbox"]');
-  const visual = wrapper.querySelector('.w-checkbox-input');
+// Setzt Checkboxen und sichtbare UI
+function setCheckboxes(categories) {
+  ['funktional','targeting'].forEach(category => {
+    const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
+    const input = wrapper?.querySelector('input[type="checkbox"]');
+    const visual = wrapper?.querySelector('.w-checkbox-input');
+    if (!wrapper || !input || !visual) return;
 
-  if (input) {
-    input.checked = !!boolChecked;
-    // trigger change event, falls Webflow darauf reagiert
-    const ev = new Event('change', { bubbles: true });
-    input.dispatchEvent(ev);
-  }
+    const checked = categories.includes(category);
+    input.checked = checked;
+    if (checked) visual.classList.add('w--redirected-checked');
+    else visual.classList.remove('w--redirected-checked');
+  });
+}
 
-  // sichtbares Element updaten
-  if (visual) {
-    if (boolChecked) {
-      visual.classList.add('w--redirected-checked');
-    } else {
-      visual.classList.remove('w--redirected-checked');
-    }
-  }
-
-  // optional: wrapper ebenfalls aktualisieren
-  if (boolChecked) {
-    wrapper.classList.add('w--redirected-checked');
-  } else {
-    wrapper.classList.remove('w--redirected-checked');
-  }
+// Entfernt Haken
+function resetCheckboxes() {
+  ['funktional','targeting'].forEach(category => {
+    const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
+    if (!wrapper) return;
+    const input = wrapper.querySelector('input[type="checkbox"]');
+    const visual = wrapper.querySelector('.w-checkbox-input');
+    if (input) input.checked = false;
+    if (visual) visual.classList.remove('w--redirected-checked');
+  });
 }
 
 /* -------------------------
    Placeholder / iframe logic
    ------------------------- */
 
-// Create placeholder
 function createPlaceholder(el, src, width, height, altImg, category) {
   const placeholder = document.createElement('div');
   placeholder.className = 'iframe-placeholder';
@@ -231,7 +202,6 @@ function createPlaceholder(el, src, width, height, altImg, category) {
   el.parentNode.replaceChild(placeholder, el);
 }
 
-// Enable iframes for accepted categories
 function enableIframes(acceptedCategories = []) {
   document.querySelectorAll('.iframe-placeholder').forEach(function(div) {
     const category = div.getAttribute('data-cookiecategory');
@@ -249,7 +219,6 @@ function enableIframes(acceptedCategories = []) {
   });
 }
 
-// Show placeholders (convert back from iframe if needed)
 function showPlaceholders() {
   document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
     if (el.tagName === 'IFRAME') {
