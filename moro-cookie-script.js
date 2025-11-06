@@ -75,19 +75,25 @@ function initCookieIframes() {
 
 // 🔹 Setzt nur die optische Vorauswahl (ohne technische Aktivierung)
 function setVisualPrechecked() {
-  // Beispiel: Funktional optisch vorgewählt anzeigen
-  const wrapper = document.querySelector('.opt-in-wrapper.is-funktional');
-  if (!wrapper) return;
-
-  const visual = wrapper.querySelector('.w-checkbox-input');
-  if (visual) {
-    visual.classList.add('w--redirected-checked'); // zeigt Haken an
+  // Funktional optisch vorgewählt
+  const funktionalWrapper = document.querySelector('.opt-in-wrapper.is-funktional');
+  if (funktionalWrapper) {
+    const visualF = funktionalWrapper.querySelector('.w-checkbox-input');
+    if (visualF) visualF.classList.add('w--redirected-checked');
+    const inputF = funktionalWrapper.querySelector('input[type="checkbox"]');
+    if (inputF) inputF.checked = false; // technisch noch nicht aktiv
   }
 
-  // input bleibt technisch inaktiv
-  const input = wrapper.querySelector('input[type="checkbox"]');
-  if (input) input.checked = false;
+  // Targeting optisch vorgewählt
+  const targetingWrapper = document.querySelector('.opt-in-wrapper.is-targeting');
+  if (targetingWrapper) {
+    const visualT = targetingWrapper.querySelector('.w-checkbox-input');
+    if (visualT) visualT.classList.add('w--redirected-checked');
+    const inputT = targetingWrapper.querySelector('input[type="checkbox"]');
+    if (inputT) inputT.checked = false; // technisch noch nicht aktiv
+  }
 }
+
 
 // Liest den Status der (unsichtbaren) input[type=checkbox] in den Webflow-Wrappers
 function getAcceptedCategories() {
