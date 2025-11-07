@@ -69,7 +69,7 @@ function initCookieIframes() {
     });
   }
 
-  /* -------------------------
+    /* -------------------------
      Neue Funktion: Button aktivieren/deaktivieren + Wiggle
      ------------------------- */
 
@@ -77,35 +77,34 @@ function updateAcceptButtonState() {
   if (!acceptBtn) return;
   const accepted = getAcceptedCategories();
 
+  // Zuvor alle Eventlistener entfernen, damit keine Duplikate entstehen
+  acceptBtn.removeEventListener('click', interceptClick, true);
+  acceptBtn.removeEventListener('touchstart', interceptClick, true);
+
   if (accepted.length === 0) {
-    acceptBtn.disabled = true;
+    // Klicks blockieren
+    acceptBtn.addEventListener('click', interceptClick, true);
+    acceptBtn.addEventListener('touchstart', interceptClick, true);
 
-    // Klicks blockieren und Wiggle auslösen
-    acceptBtn.addEventListener('click', blockClick, true); // useCapture = true
-    acceptBtn.addEventListener('touchstart', blockClick, true);
+    // Cursor optisch ändern
+    acceptBtn.style.cursor = 'not-allowed';
   } else {
-    acceptBtn.disabled = false;
-
-    // Eventlistener wieder entfernen, wenn aktiv
-    acceptBtn.removeEventListener('click', blockClick, true);
-    acceptBtn.removeEventListener('touchstart', blockClick, true);
-    acceptBtn.style.transform = 'none';
+    acceptBtn.style.cursor = 'pointer';
   }
 }
 
-// Diese Funktion blockiert Klicks und lässt den Button wackeln
-function blockClick(e) {
-  e.stopImmediatePropagation(); // verhindert Webflow-Interaktion
+// Klick abfangen und Wiggle auslösen
+function interceptClick(e) {
   e.preventDefault();
-  wiggleOnce(e);
+  e.stopImmediatePropagation(); // blockiert Webflow-Interaktionen
+  wiggleOnce(e.currentTarget);
 }
 
-// Wiggle-Funktion
-function wiggleOnce(e) {
-  const btn = e.currentTarget;
+// Wiggle-Funktion (glatt)
+function wiggleOnce(btn) {
   let i = 0;
-  const angles = [0, -10, 10, -8, 8, -5, 5, 0]; // Drehwinkel
-  const interval = 30; // ms zwischen Schritten
+  const angles = [0, -10, 10, -8, 8, -5, 5, 0];
+  const interval = 30;
 
   const wiggleInterval = setInterval(() => {
     btn.style.transform = `rotate(${angles[i]}deg)`;
@@ -117,6 +116,14 @@ function wiggleOnce(e) {
   }, interval);
 }
 
+// Checkboxen überwachen
+['funktional','targeting'].forEach(category => {
+  const input = document.querySelector('.opt-in-wrapper.is-' + category + ' input[type="checkbox"]');
+  if (input) input.addEventListener('change', updateAcceptButtonState);
+});
+
+// Initial prüfen
+updateAcceptButtonState();
 
 
   // Checkboxen überwachen
