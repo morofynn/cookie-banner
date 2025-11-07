@@ -221,20 +221,27 @@ function enableIframes(acceptedCategories = []) {
 
 function showPlaceholders() {
   document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
+    // 🔹 iFrame → Placeholder erstellen
     if (el.tagName === 'IFRAME') {
       const src = el.getAttribute('data-src') || el.src;
       const width = el.getAttribute('data-width') || el.width || '100%';
       const height = el.getAttribute('data-height') || el.height || '100%';
       const altImg = el.getAttribute('alt-img') || el.getAttribute('data-alt-img');
       const category = el.getAttribute('cookiecategory') || el.getAttribute('data-cookiecategory');
+
       createPlaceholder(el, src, width, height, altImg, category);
-    } else if (el.tagName === 'DIV') {
+    }
+    // 🔹 Placeholder DIV → nur Alt-Image prüfen
+    else if (el.classList.contains('iframe-placeholder')) {
       const altImg = el.getAttribute('data-alt-img');
-      const width = el.getAttribute('data-width') || '100%';
-      const height = el.getAttribute('data-height') || '100%';
-      const src = el.getAttribute('data-src') || '';
-      const category = el.getAttribute('data-cookiecategory');
-      createPlaceholder(el, src, width, height, altImg, category);
+      if (altImg && !el.querySelector('img')) {
+        el.innerHTML = ''; // Text entfernen, falls vorhanden
+        const img = document.createElement('img');
+        img.src = altImg;
+        img.alt = 'Alternative Vorschau';
+        img.style.cssText = 'width:100%; height:100%; object-fit:cover;';
+        el.appendChild(img);
+      }
     }
   });
 }
