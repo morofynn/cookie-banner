@@ -219,7 +219,6 @@ function enableIframes(acceptedCategories = []) {
   });
 }
 
-
 function showPlaceholders() {
   document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
     if (el.tagName === 'IFRAME') {
