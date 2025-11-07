@@ -256,5 +256,6 @@ function showPlaceholders() {
       const category = el.getAttribute('data-cookiecategory');
       createPlaceholder(el, src, width, height, altImg, category);
     }
-  });*/
+  });
+  }*/
 
