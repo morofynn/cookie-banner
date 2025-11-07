@@ -52,104 +52,82 @@ function initCookieIframes() {
   if (acceptBtn) {
     acceptBtn.addEventListener('click', function() {
       precheckedToChecked();
-
       const accepted = getAcceptedCategories();
       localStorage.setItem('cookiesAccepted', 'true');
       localStorage.setItem('acceptedCategories', JSON.stringify(accepted));
       enableIframes(accepted);
+
+      // Button-Status prüfen nach Klick (für dynamische Änderungen)
       updateAcceptButtonState();
     });
   }
 
-if (declineBtn) {
-  declineBtn.addEventListener('click', function() {
-    localStorage.setItem('cookiesAccepted', 'false');
-    localStorage.setItem('acceptedCategories', '[]');
-    resetCheckboxes();
-    showPlaceholders();
+  if (declineBtn) {
+    declineBtn.addEventListener('click', function() {
+      localStorage.setItem('cookiesAccepted', 'false');
+      localStorage.setItem('acceptedCategories', '[]');
+      resetCheckboxes();
+      showPlaceholders();
 
-    // Wichtig: Button-Status neu prüfen
-    updateAcceptButtonState();
-  });
-}
-
-
-// Checkboxen überwachen, um Button aktiv/inaktiv zu setzen
-['funktional','targeting'].forEach(category => {
-  const input = document.querySelector('.opt-in-wrapper.is-' + category + ' input[type="checkbox"]');
-  if (input) input.addEventListener('change', updateAcceptButtonState);
-});
-
-// Initial prüfen
-updateAcceptButtonState();
-   
-    /* -------------------------
-     Neue Funktion: Button aktivieren/deaktivieren + Wiggle
-     ------------------------- */
-
-function updateAcceptButtonState() {
-  if (!acceptBtn) return;
-  const accepted = getAcceptedCategories();
-
-  // Zuvor alle Eventlistener entfernen, damit keine Duplikate entstehen
-  acceptBtn.removeEventListener('click', interceptClick, true);
-  acceptBtn.removeEventListener('touchstart', interceptClick, true);
-
-  if (accepted.length === 0) {
-    // Keine Checkbox aktiv → blockiere Klick und Wiggle
-    acceptBtn.addEventListener('click', interceptClick, true);
-    acceptBtn.addEventListener('touchstart', interceptClick, true);
-
-    acceptBtn.style.cursor = 'not-allowed';
-  } else {
-    // Mindestens eine Checkbox aktiv → Klick erlaubt
-    acceptBtn.style.cursor = 'pointer';
+      // Button-Status nach Ablehnen prüfen
+      updateAcceptButtonState();
+    });
   }
-}
 
-// Klick abfangen und Wiggle auslösen
-function interceptClick(e) {
-  e.preventDefault();
-  e.stopImmediatePropagation(); // blockiert Webflow-Interaktionen
-  wiggleOnce(e.currentTarget);
-}
-
-// Wiggle-Funktion (glatt)
-function wiggleOnce(btn) {
-  let i = 0;
-  const angles = [0, -10, 10, -8, 8, -5, 5, 0];
-  const interval = 30;
-
-  const wiggleInterval = setInterval(() => {
-    btn.style.transform = `rotate(${angles[i]}deg)`;
-    i++;
-    if (i >= angles.length) {
-      clearInterval(wiggleInterval);
-      btn.style.transform = 'none';
-    }
-  }, interval);
-}
-
-// Checkboxen überwachen
-['funktional','targeting'].forEach(category => {
-  const input = document.querySelector('.opt-in-wrapper.is-' + category + ' input[type="checkbox"]');
-  if (input) input.addEventListener('change', updateAcceptButtonState);
-});
-
-// Initial prüfen
-updateAcceptButtonState();
-
-
-  // Checkboxen überwachen
+  // 🔹 Checkboxen überwachen
   ['funktional','targeting'].forEach(category => {
     const input = document.querySelector('.opt-in-wrapper.is-' + category + ' input[type="checkbox"]');
-    if (input) {
-      input.addEventListener('change', updateAcceptButtonState);
-    }
+    if (input) input.addEventListener('change', updateAcceptButtonState);
   });
 
   // Initial prüfen
   updateAcceptButtonState();
+
+  /* -------------------------
+     Neue Funktion: Button aktivieren/deaktivieren + Wiggle
+     ------------------------- */
+
+  function updateAcceptButtonState() {
+    if (!acceptBtn) return;
+    const accepted = getAcceptedCategories();
+
+    // Zuvor alle Eventlistener entfernen, damit keine Duplikate entstehen
+    acceptBtn.removeEventListener('click', interceptClick, true);
+    acceptBtn.removeEventListener('touchstart', interceptClick, true);
+
+    if (accepted.length === 0) {
+      // Keine Checkbox aktiv → blockiere Klick und Wiggle
+      acceptBtn.addEventListener('click', interceptClick, true);
+      acceptBtn.addEventListener('touchstart', interceptClick, true);
+      acceptBtn.style.cursor = 'not-allowed';
+    } else {
+      // Mindestens eine Checkbox aktiv → Klick erlaubt
+      acceptBtn.style.cursor = 'pointer';
+    }
+  }
+
+  // Klick abfangen und Wiggle auslösen
+  function interceptClick(e) {
+    e.preventDefault();
+    e.stopImmediatePropagation(); // blockiert Webflow-Interaktionen
+    wiggleOnce(e.currentTarget);
+  }
+
+  // Wiggle-Funktion (glatt)
+  function wiggleOnce(btn) {
+    let i = 0;
+    const angles = [0, -10, 10, -8, 8, -5, 5, 0];
+    const interval = 30;
+
+    const wiggleInterval = setInterval(() => {
+      btn.style.transform = `rotate(${angles[i]}deg)`;
+      i++;
+      if (i >= angles.length) {
+        clearInterval(wiggleInterval);
+        btn.style.transform = 'none';
+      }
+    }, interval);
+  }
 }
 
 /* -------------------------
