@@ -145,11 +145,6 @@ function resetCheckboxes() {
    ------------------------- */
 
 function createPlaceholder(el, src, width, height, altImg, category) {
-  // 🔹 Fallback: falls altImg leer, versuchen wir, es direkt aus dem Element zu lesen
-  if (!altImg) {
-    altImg = el.getAttribute('alt-img') || el.getAttribute('data-alt-img') || null;
-  }
-
   const placeholder = document.createElement('div');
   placeholder.className = 'iframe-placeholder';
   placeholder.setAttribute('data-src', src);
@@ -194,7 +189,6 @@ function createPlaceholder(el, src, width, height, altImg, category) {
     font-weight: ${computedStyles.fontWeight || '400'};
   `;
 
-  // 🔹 Bild anzeigen, wenn alt-img existiert
   if (altImg) {
     const img = document.createElement('img');
     img.src = altImg;
@@ -225,21 +219,7 @@ function enableIframes(acceptedCategories = []) {
   });
 }
 
-// 🔹 Nur echte iframes ersetzen (keine Platzhalter-Divs erneut)
 function showPlaceholders() {
-  document.querySelectorAll('iframe').forEach(function(el) {
-    const src = el.getAttribute('data-src') || el.src;
-    const width = el.getAttribute('data-width') || el.width || '100%';
-    const height = el.getAttribute('data-height') || el.height || '100%';
-    const altImg = el.getAttribute('alt-img') || el.getAttribute('data-alt-img');
-    const category = el.getAttribute('cookiecategory') || el.getAttribute('data-cookiecategory');
-    createPlaceholder(el, src, width, height, altImg, category);
-  });
-}
-
-
-
-/*function showPlaceholders() {
   document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
     if (el.tagName === 'IFRAME') {
       const src = el.getAttribute('data-src') || el.src;
@@ -256,6 +236,5 @@ function showPlaceholders() {
       const category = el.getAttribute('data-cookiecategory');
       createPlaceholder(el, src, width, height, altImg, category);
     }
-  });
-  }*/
-
+  })
+}
