@@ -221,35 +221,20 @@ function enableIframes(acceptedCategories = []) {
 
 function showPlaceholders() {
   document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
-    // 🔹 iFrame → immer durch Placeholder ersetzen
     if (el.tagName === 'IFRAME') {
       const src = el.getAttribute('data-src') || el.src;
       const width = el.getAttribute('data-width') || el.width || '100%';
       const height = el.getAttribute('data-height') || el.height || '100%';
       const altImg = el.getAttribute('alt-img') || el.getAttribute('data-alt-img');
       const category = el.getAttribute('cookiecategory') || el.getAttribute('data-cookiecategory');
-
       createPlaceholder(el, src, width, height, altImg, category);
-    } 
-    // 🔹 Existierender Placeholder → Alt-Image prüfen
-    else if (el.classList.contains('iframe-placeholder')) {
+    } else if (el.tagName === 'DIV') {
       const altImg = el.getAttribute('data-alt-img');
-      if (altImg) {
-        // Nur hinzufügen, wenn noch kein Bild drin ist
-        if (!el.querySelector('img')) {
-          el.innerHTML = ''; // Text entfernen
-          const img = document.createElement('img');
-          img.src = altImg;
-          img.alt = 'Alternative Vorschau';
-          img.style.cssText = 'width:100%; height:100%; object-fit:cover;';
-          el.appendChild(img);
-        }
-      } else {
-        // Kein alt-img → Text-Platzhalter anzeigen
-        if (!el.querySelector('img')) {
-          el.innerText = 'Bitte stimmen Sie der Verwendung von Cookies zu, um den Inhalt zu laden.';
-        }
-      }
+      const width = el.getAttribute('data-width') || '100%';
+      const height = el.getAttribute('data-height') || '100%';
+      const src = el.getAttribute('data-src') || '';
+      const category = el.getAttribute('data-cookiecategory');
+      createPlaceholder(el, src, width, height, altImg, category);
     }
   });
 }
