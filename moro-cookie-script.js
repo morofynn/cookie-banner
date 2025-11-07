@@ -257,4 +257,4 @@ function showPlaceholders() {
       createPlaceholder(el, src, width, height, altImg, category);
     }
   });*/
-}
+
