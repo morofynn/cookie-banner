@@ -38,7 +38,6 @@ function initCookieIframes() {
     resetCheckboxes();
     showPlaceholders();
   } else {
-    // Noch keine Entscheidung → Banner öffnen und beide Kategorien optisch vorwählen
     showPlaceholders();
     setVisualPrechecked();
 
@@ -52,7 +51,6 @@ function initCookieIframes() {
 
   if (acceptBtn) {
     acceptBtn.addEventListener('click', function() {
-      // 🔹 Vorher alle optisch markierten Checkboxen technisch aktivieren
       precheckedToChecked();
 
       const accepted = getAcceptedCategories();
@@ -70,13 +68,58 @@ function initCookieIframes() {
       showPlaceholders();
     });
   }
+
+  /* -------------------------
+     Neue Funktion: Button aktivieren/deaktivieren + Wiggle
+     ------------------------- */
+
+  function updateAcceptButtonState() {
+    if (!acceptBtn) return;
+    const accepted = getAcceptedCategories();
+
+    if (accepted.length === 0) {
+      acceptBtn.disabled = true;
+
+      // Wiggle bei Klick versuchen
+      acceptBtn.addEventListener('click', wiggleOnce);
+      acceptBtn.addEventListener('touchstart', wiggleOnce);
+    } else {
+      acceptBtn.disabled = false;
+
+      // Eventlistener wieder entfernen, wenn aktiv
+      acceptBtn.removeEventListener('click', wiggleOnce);
+      acceptBtn.removeEventListener('touchstart', wiggleOnce);
+      acceptBtn.style.transform = 'none';
+    }
+  }
+
+  function wiggleOnce(e) {
+    e.preventDefault(); // Klick soll nichts tun
+    const btn = e.currentTarget;
+    btn.style.transition = 'transform 0.1s ease';
+    btn.style.transform = 'translateX(-5px)';
+    setTimeout(() => { btn.style.transform = 'translateX(5px)'; }, 100);
+    setTimeout(() => { btn.style.transform = 'translateX(-5px)'; }, 200);
+    setTimeout(() => { btn.style.transform = 'translateX(0)'; }, 300);
+  }
+
+  // Checkboxen überwachen
+  ['funktional','targeting'].forEach(category => {
+    const input = document.querySelector('.opt-in-wrapper.is-' + category + ' input[type="checkbox"]');
+    if (input) {
+      input.addEventListener('change', updateAcceptButtonState);
+    }
+  });
+
+  // Initial prüfen
+  updateAcceptButtonState();
 }
 
 /* -------------------------
    Helpers for Webflow checkboxes
    ------------------------- */
 
-// 🔹 Optische Vorauswahl setzen (Pre-checked, technisch noch nicht aktiv)
+// 🔹 Optische Vorauswahl setzen
 function setVisualPrechecked() {
   ['funktional','targeting'].forEach(category => {
     const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
