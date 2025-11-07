@@ -221,7 +221,7 @@ function enableIframes(acceptedCategories = []) {
 
 function showPlaceholders() {
   document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
-    // 🔹 iFrame → Placeholder erstellen
+    // 🔹 iFrame → immer durch Placeholder ersetzen
     if (el.tagName === 'IFRAME') {
       const src = el.getAttribute('data-src') || el.src;
       const width = el.getAttribute('data-width') || el.width || '100%';
@@ -230,17 +230,25 @@ function showPlaceholders() {
       const category = el.getAttribute('cookiecategory') || el.getAttribute('data-cookiecategory');
 
       createPlaceholder(el, src, width, height, altImg, category);
-    }
-    // 🔹 Placeholder DIV → nur Alt-Image prüfen
+    } 
+    // 🔹 Existierender Placeholder → Alt-Image prüfen
     else if (el.classList.contains('iframe-placeholder')) {
       const altImg = el.getAttribute('data-alt-img');
-      if (altImg && !el.querySelector('img')) {
-        el.innerHTML = ''; // Text entfernen, falls vorhanden
-        const img = document.createElement('img');
-        img.src = altImg;
-        img.alt = 'Alternative Vorschau';
-        img.style.cssText = 'width:100%; height:100%; object-fit:cover;';
-        el.appendChild(img);
+      if (altImg) {
+        // Nur hinzufügen, wenn noch kein Bild drin ist
+        if (!el.querySelector('img')) {
+          el.innerHTML = ''; // Text entfernen
+          const img = document.createElement('img');
+          img.src = altImg;
+          img.alt = 'Alternative Vorschau';
+          img.style.cssText = 'width:100%; height:100%; object-fit:cover;';
+          el.appendChild(img);
+        }
+      } else {
+        // Kein alt-img → Text-Platzhalter anzeigen
+        if (!el.querySelector('img')) {
+          el.innerText = 'Bitte stimmen Sie der Verwendung von Cookies zu, um den Inhalt zu laden.';
+        }
       }
     }
   });
