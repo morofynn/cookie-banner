@@ -57,17 +57,22 @@ function initCookieIframes() {
       localStorage.setItem('cookiesAccepted', 'true');
       localStorage.setItem('acceptedCategories', JSON.stringify(accepted));
       enableIframes(accepted);
+      updateAcceptButtonState();
     });
   }
 
-  if (declineBtn) {
-    declineBtn.addEventListener('click', function() {
-      localStorage.setItem('cookiesAccepted', 'false');
-      localStorage.setItem('acceptedCategories', '[]');
-      resetCheckboxes();
-      showPlaceholders();
-    });
-  }
+if (declineBtn) {
+  declineBtn.addEventListener('click', function() {
+    localStorage.setItem('cookiesAccepted', 'false');
+    localStorage.setItem('acceptedCategories', '[]');
+    resetCheckboxes();
+    showPlaceholders();
+
+    // Wichtig: Button-Status neu prüfen
+    updateAcceptButtonState();
+  });
+}
+
 
 // Checkboxen überwachen, um Button aktiv/inaktiv zu setzen
 ['funktional','targeting'].forEach(category => {
