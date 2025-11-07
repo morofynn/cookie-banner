@@ -220,6 +220,18 @@ function enableIframes(acceptedCategories = []) {
 }
 
 function showPlaceholders() {
+  document.querySelectorAll('iframe').forEach(function(el) {
+    const src = el.getAttribute('data-src') || el.src;
+    const width = el.getAttribute('data-width') || el.width || '100%';
+    const height = el.getAttribute('data-height') || el.height || '100%';
+    const altImg = el.getAttribute('alt-img') || el.getAttribute('data-alt-img');
+    const category = el.getAttribute('cookiecategory') || el.getAttribute('data-cookiecategory');
+    createPlaceholder(el, src, width, height, altImg, category);
+  });
+}
+
+
+/*function showPlaceholders() {
   document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
     if (el.tagName === 'IFRAME') {
       const src = el.getAttribute('data-src') || el.src;
@@ -236,5 +248,5 @@ function showPlaceholders() {
       const category = el.getAttribute('data-cookiecategory');
       createPlaceholder(el, src, width, height, altImg, category);
     }
-  });
+  });*/
 }
