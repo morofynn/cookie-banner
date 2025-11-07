@@ -69,6 +69,15 @@ function initCookieIframes() {
     });
   }
 
+// Checkboxen überwachen, um Button aktiv/inaktiv zu setzen
+['funktional','targeting'].forEach(category => {
+  const input = document.querySelector('.opt-in-wrapper.is-' + category + ' input[type="checkbox"]');
+  if (input) input.addEventListener('change', updateAcceptButtonState);
+});
+
+// Initial prüfen
+updateAcceptButtonState();
+   
     /* -------------------------
      Neue Funktion: Button aktivieren/deaktivieren + Wiggle
      ------------------------- */
@@ -82,13 +91,13 @@ function updateAcceptButtonState() {
   acceptBtn.removeEventListener('touchstart', interceptClick, true);
 
   if (accepted.length === 0) {
-    // Klicks blockieren
+    // Keine Checkbox aktiv → blockiere Klick und Wiggle
     acceptBtn.addEventListener('click', interceptClick, true);
     acceptBtn.addEventListener('touchstart', interceptClick, true);
 
-    // Cursor optisch ändern
     acceptBtn.style.cursor = 'not-allowed';
   } else {
+    // Mindestens eine Checkbox aktiv → Klick erlaubt
     acceptBtn.style.cursor = 'pointer';
   }
 }
