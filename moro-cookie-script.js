@@ -205,6 +205,7 @@ function resetCheckboxes() {
 function createPlaceholder(el, src, width, height, altImg, category) {
   const placeholder = document.createElement('div');
   placeholder.className = 'iframe-placeholder';
+  if (el.id) placeholder.id = el.id;
   placeholder.setAttribute('data-src', src);
   placeholder.setAttribute('data-width', width);
   placeholder.setAttribute('data-height', height);
@@ -265,6 +266,7 @@ function enableIframes(acceptedCategories = []) {
     const category = div.getAttribute('data-cookiecategory');
     if (!category || acceptedCategories.includes(category)) {
       const iframe = document.createElement('iframe');
+      if (div.id) iframe.id = div.id;
       iframe.src = div.getAttribute('data-src');
       iframe.setAttribute('width', div.getAttribute('data-width'));
       iframe.setAttribute('height', div.getAttribute('data-height'));
