@@ -1,6 +1,10 @@
 /* -------------------------
    Cookie Banner MORO
    ------------------------- */
+document.querySelectorAll('.cookies').forEach(el => {
+  el.style.visibility = 'visible'; // turn on if hidden while designing
+});
+
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initCookieIframes);
