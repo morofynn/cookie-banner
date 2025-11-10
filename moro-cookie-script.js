@@ -93,19 +93,22 @@ function updateAcceptButtonState() {
   // technisch aktive Checkboxen
   const accepted = getAcceptedCategories();
 
-  // optisch vorausgewählte Checkboxen
+  // optisch vorausgewählte Checkboxen, die noch nicht technisch angehakt sind
   const prechecked = Array.from(document.querySelectorAll('.w-checkbox-input.w--redirected-checked'))
-    .map(el => el.closest('.opt-in-wrapper'))
-    .filter(wrapper => wrapper)
-    .map(wrapper => wrapper.classList.contains('is-funktional') ? 'funktional' : 'targeting');
+    .map(el => {
+      const input = el.closest('.opt-in-wrapper')?.querySelector('input[type="checkbox"]');
+      return input?.checked ? null : input; // nur noch nicht technisch gecheckte
+    })
+    .filter(Boolean);
 
-  const totalActive = new Set([...accepted, ...prechecked]); // alle aktiven Kategorien
+  // Gesamtanzahl aktiver Checkboxen (technisch oder optisch)
+  const totalActiveCount = accepted.length + prechecked.length;
 
   // Klick abfangen, wenn keine aktiv
   acceptBtn.removeEventListener('click', interceptClick, true);
   acceptBtn.removeEventListener('touchstart', interceptClick, true);
 
-  if (totalActive.size === 0) {
+  if (totalActiveCount === 0) {
     acceptBtn.addEventListener('click', interceptClick, true);
     acceptBtn.addEventListener('touchstart', interceptClick, true);
     acceptBtn.style.cursor = 'not-allowed';
@@ -113,6 +116,7 @@ function updateAcceptButtonState() {
     acceptBtn.style.cursor = 'pointer';
   }
 }
+
 
   // Klick abfangen und Wiggle auslösen
   function interceptClick(e) {
