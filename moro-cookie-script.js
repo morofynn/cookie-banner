@@ -87,27 +87,32 @@ function initCookieIframes() {
      Neue Funktion: Button aktivieren/deaktivieren + Wiggle
      ------------------------- */
 
-  function updateAcceptButtonState() {
-    if (!acceptBtn) return;
-    const accepted = getAcceptedCategories();
+function updateAcceptButtonState() {
+  if (!acceptBtn) return;
 
-    // Zusätzlich: zählen wir optisch vorausgewählte Checkboxen
-    const prechecked = document.querySelectorAll('.w-checkbox-input.w--redirected-checked').length;
-     
-    // Zuvor alle Eventlistener entfernen, damit keine Duplikate entstehen
-    acceptBtn.removeEventListener('click', interceptClick, true);
-    acceptBtn.removeEventListener('touchstart', interceptClick, true);
+  // technisch aktive Checkboxen
+  const accepted = getAcceptedCategories();
 
-    if (accepted.length === 0) {
-      // Keine Checkbox aktiv → blockiere Klick und Wiggle
-      acceptBtn.addEventListener('click', interceptClick, true);
-      acceptBtn.addEventListener('touchstart', interceptClick, true);
-      acceptBtn.style.cursor = 'not-allowed';
-    } else {
-      // Mindestens eine Checkbox aktiv → Klick erlaubt
-      acceptBtn.style.cursor = 'pointer';
-    }
+  // optisch vorausgewählte Checkboxen
+  const prechecked = Array.from(document.querySelectorAll('.w-checkbox-input.w--redirected-checked'))
+    .map(el => el.closest('.opt-in-wrapper'))
+    .filter(wrapper => wrapper)
+    .map(wrapper => wrapper.classList.contains('is-funktional') ? 'funktional' : 'targeting');
+
+  const totalActive = new Set([...accepted, ...prechecked]); // alle aktiven Kategorien
+
+  // Klick abfangen, wenn keine aktiv
+  acceptBtn.removeEventListener('click', interceptClick, true);
+  acceptBtn.removeEventListener('touchstart', interceptClick, true);
+
+  if (totalActive.size === 0) {
+    acceptBtn.addEventListener('click', interceptClick, true);
+    acceptBtn.addEventListener('touchstart', interceptClick, true);
+    acceptBtn.style.cursor = 'not-allowed';
+  } else {
+    acceptBtn.style.cursor = 'pointer';
   }
+}
 
   // Klick abfangen und Wiggle auslösen
   function interceptClick(e) {
