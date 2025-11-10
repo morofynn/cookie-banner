@@ -91,6 +91,9 @@ function initCookieIframes() {
     if (!acceptBtn) return;
     const accepted = getAcceptedCategories();
 
+    // Zusätzlich: zählen wir optisch vorausgewählte Checkboxen
+    const prechecked = document.querySelectorAll('.w-checkbox-input.w--redirected-checked').length;
+     
     // Zuvor alle Eventlistener entfernen, damit keine Duplikate entstehen
     acceptBtn.removeEventListener('click', interceptClick, true);
     acceptBtn.removeEventListener('touchstart', interceptClick, true);
