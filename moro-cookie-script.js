@@ -49,18 +49,25 @@ function initCookieIframes() {
   const acceptBtn = document.querySelector('#accept-btn');
   const declineBtn = document.querySelector('#decline-btn');
 
-  if (acceptBtn) {
-    acceptBtn.addEventListener('click', function() {
-      precheckedToChecked();
-      const accepted = getAcceptedCategories();
-      localStorage.setItem('cookiesAccepted', 'true');
-      localStorage.setItem('acceptedCategories', JSON.stringify(accepted));
-      enableIframes(accepted);
+if (acceptBtn) {
+  acceptBtn.addEventListener('click', function() {
+    const accepted = getAcceptedCategories();
 
-      // Button-Status prüfen nach Klick (für dynamische Änderungen)
-      updateAcceptButtonState();
-    });
-  }
+    if (accepted.length === 0) {
+      // keine Checkbox aktiv → blockieren + Wiggle
+      interceptClick(); 
+      return;
+    }
+
+    // Speichern & Iframes laden
+    localStorage.setItem('cookiesAccepted', 'true');
+    localStorage.setItem('acceptedCategories', JSON.stringify(accepted));
+    enableIframes(accepted);
+
+    // Button-Status prüfen
+    updateAcceptButtonState();
+  });
+}
 
   if (declineBtn) {
     declineBtn.addEventListener('click', function() {
