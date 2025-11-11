@@ -87,7 +87,27 @@ function initCookieIframes() {
      Neue Funktion: Button aktivieren/deaktivieren + Wiggle
      ------------------------- */
 
-function updateAcceptButtonState() {
+   function updateAcceptButtonState() {
+  if (!acceptBtn) return;
+
+  // nur technisch aktive Checkboxen zählen
+  const accepted = getAcceptedCategories();
+
+  // Klick abfangen, wenn keine aktiv
+  acceptBtn.removeEventListener('click', interceptClick, true);
+  acceptBtn.removeEventListener('touchstart', interceptClick, true);
+
+  if (accepted.length === 0) {
+    acceptBtn.addEventListener('click', interceptClick, true);
+    acceptBtn.addEventListener('touchstart', interceptClick, true);
+    acceptBtn.style.cursor = 'not-allowed';
+  } else {
+    acceptBtn.style.cursor = 'pointer';
+  }
+}
+
+   
+/* function updateAcceptButtonState() {
   if (!acceptBtn) return;
 
   // technisch aktive Checkboxen
@@ -115,7 +135,7 @@ function updateAcceptButtonState() {
   } else {
     acceptBtn.style.cursor = 'pointer';
   }
-}
+} */
 
 
   // Klick abfangen und Wiggle auslösen
@@ -154,10 +174,11 @@ function setVisualPrechecked() {
       const visual = wrapper.querySelector('.w-checkbox-input');
       if (visual) visual.classList.add('w--redirected-checked');
       const input = wrapper.querySelector('input[type="checkbox"]');
-      if (input) input.checked = false;
+      if (input) input.checked = true; // <-- vorher false, jetzt true
     }
   });
 }
+
 
 // 🔹 Vor dem Akzeptieren: alle optisch markierten Checkboxen technisch aktivieren
 function precheckedToChecked() {
