@@ -1,5 +1,5 @@
 /* -------------------------
-   Cookie Banner MORO
+   Cookie Banner MORO (inkl. GTM & Consent Mode v2)
    ------------------------- */
 
 if (document.readyState === 'loading') {
@@ -34,9 +34,11 @@ function initCookieIframes() {
   if (consent === 'true') {
     setCheckboxes(acceptedCategories);
     enableIframes(acceptedCategories);
+    updateGTMConsent(acceptedCategories); // 🌐 GTM: Status beim Laden mitteilen
   } else if (consent === 'false') {
     resetCheckboxes();
     showPlaceholders();
+    updateGTMConsent([]); // 🌐 GTM: Alles abgelehnt melden
   } else {
     showPlaceholders();
     setVisualPrechecked();
@@ -49,25 +51,26 @@ function initCookieIframes() {
   const acceptBtn = document.querySelector('#accept-btn');
   const declineBtn = document.querySelector('#decline-btn');
 
-if (acceptBtn) {
-  acceptBtn.addEventListener('click', function() {
-    const accepted = getAcceptedCategories();
+  if (acceptBtn) {
+    acceptBtn.addEventListener('click', function() {
+      const accepted = getAcceptedCategories();
 
-    if (accepted.length === 0) {
-      // keine Checkbox aktiv → blockieren + Wiggle
-      interceptClick(); 
-      return;
-    }
+      if (accepted.length === 0) {
+        interceptClick(); 
+        return;
+      }
 
-    // Speichern & Iframes laden
-    localStorage.setItem('cookiesAccepted', 'true');
-    localStorage.setItem('acceptedCategories', JSON.stringify(accepted));
-    enableIframes(accepted);
+      // Speichern & Iframes laden
+      localStorage.setItem('cookiesAccepted', 'true');
+      localStorage.setItem('acceptedCategories', JSON.stringify(accepted));
+      enableIframes(accepted);
+      
+      updateGTMConsent(accepted); // 🌐 GTM: Erlaubte Kategorien senden
 
-    // Button-Status prüfen
-    updateAcceptButtonState();
-  });
-}
+      // Button-Status prüfen
+      updateAcceptButtonState();
+    });
+  }
 
   if (declineBtn) {
     declineBtn.addEventListener('click', function() {
@@ -75,6 +78,8 @@ if (acceptBtn) {
       localStorage.setItem('acceptedCategories', '[]');
       resetCheckboxes();
       showPlaceholders();
+
+      updateGTMConsent([]); // 🌐 GTM: Alles auf "denied" setzen
 
       // Button-Status nach Ablehnen prüfen
       updateAcceptButtonState();
@@ -91,64 +96,57 @@ if (acceptBtn) {
   updateAcceptButtonState();
 
   /* -------------------------
+     Zusatzfunktion: GTM & Consent Mode v2 Brücke
+     ------------------------- */
+  function updateGTMConsent(categories) {
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    const hasTargeting = categories.includes('targeting');
+    const hasFunktional = categories.includes('funktional');
+
+    // 1. Offizielles Google Consent Mode v2 Update senden
+    gtag('consent', 'update', {
+      'analytics_storage': hasTargeting ? 'granted' : 'denied',
+      'ad_storage': hasTargeting ? 'granted' : 'denied',
+      'ad_user_data': hasTargeting ? 'granted' : 'denied',
+      'ad_personalization': hasTargeting ? 'granted' : 'denied',
+      'functionality_storage': hasFunktional ? 'granted' : 'denied',
+      'personalization_storage': hasFunktional ? 'granted' : 'denied'
+    });
+
+    // 2. Custom Event in den dataLayer jagen (für deine GTM Trigger)
+    window.dataLayer.push({
+      'event': 'cookie_consent_updated',
+      'consent_funktional': hasFunktional ? 'granted' : 'denied',
+      'consent_targeting': hasTargeting ? 'granted' : 'denied'
+    });
+  }
+
+  /* -------------------------
      Neue Funktion: Button aktivieren/deaktivieren + Wiggle
      ------------------------- */
+  function updateAcceptButtonState() {
+    if (!acceptBtn) return;
 
-   function updateAcceptButtonState() {
-  if (!acceptBtn) return;
+    const accepted = getAcceptedCategories();
 
-  // nur technisch aktive Checkboxen zählen
-  const accepted = getAcceptedCategories();
+    acceptBtn.removeEventListener('click', interceptClick, true);
+    acceptBtn.removeEventListener('touchstart', interceptClick, true);
 
-  // Klick abfangen, wenn keine aktiv
-  acceptBtn.removeEventListener('click', interceptClick, true);
-  acceptBtn.removeEventListener('touchstart', interceptClick, true);
-
-  if (accepted.length === 0) {
-    acceptBtn.addEventListener('click', interceptClick, true);
-    acceptBtn.addEventListener('touchstart', interceptClick, true);
-    acceptBtn.style.cursor = 'not-allowed';
-  } else {
-    acceptBtn.style.cursor = 'pointer';
+    if (accepted.length === 0) {
+      acceptBtn.addEventListener('click', interceptClick, true);
+      acceptBtn.addEventListener('touchstart', interceptClick, true);
+      acceptBtn.style.cursor = 'not-allowed';
+    } else {
+      acceptBtn.style.cursor = 'pointer';
+    }
   }
-}
-
-   
-/* function updateAcceptButtonState() {
-  if (!acceptBtn) return;
-
-  // technisch aktive Checkboxen
-  const accepted = getAcceptedCategories();
-
-  // optisch vorausgewählte Checkboxen, die noch nicht technisch angehakt sind
-  const prechecked = Array.from(document.querySelectorAll('.w-checkbox-input.w--redirected-checked'))
-    .map(el => {
-      const input = el.closest('.opt-in-wrapper')?.querySelector('input[type="checkbox"]');
-      return input?.checked ? null : input; // nur noch nicht technisch gecheckte
-    })
-    .filter(Boolean);
-
-  // Gesamtanzahl aktiver Checkboxen (technisch oder optisch)
-  const totalActiveCount = accepted.length + prechecked.length;
-
-  // Klick abfangen, wenn keine aktiv
-  acceptBtn.removeEventListener('click', interceptClick, true);
-  acceptBtn.removeEventListener('touchstart', interceptClick, true);
-
-  if (totalActiveCount === 0) {
-    acceptBtn.addEventListener('click', interceptClick, true);
-    acceptBtn.addEventListener('touchstart', interceptClick, true);
-    acceptBtn.style.cursor = 'not-allowed';
-  } else {
-    acceptBtn.style.cursor = 'pointer';
-  }
-} */
-
 
   // Klick abfangen und Wiggle auslösen
   function interceptClick(e) {
     e.preventDefault();
-    e.stopImmediatePropagation(); // blockiert Webflow-Interaktionen
+    e.stopImmediatePropagation(); 
     wiggleOnce(e.currentTarget);
   }
 
@@ -173,7 +171,6 @@ if (acceptBtn) {
    Helpers for Webflow checkboxes
    ------------------------- */
 
-// 🔹 Optische Vorauswahl setzen
 function setVisualPrechecked() {
   ['funktional','targeting'].forEach(category => {
     const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
@@ -181,13 +178,11 @@ function setVisualPrechecked() {
       const visual = wrapper.querySelector('.w-checkbox-input');
       if (visual) visual.classList.add('w--redirected-checked');
       const input = wrapper.querySelector('input[type="checkbox"]');
-      if (input) input.checked = true; // <-- vorher false, jetzt true
+      if (input) input.checked = true;
     }
   });
 }
 
-
-// 🔹 Vor dem Akzeptieren: alle optisch markierten Checkboxen technisch aktivieren
 function precheckedToChecked() {
   ['funktional','targeting'].forEach(category => {
     const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
@@ -201,7 +196,6 @@ function precheckedToChecked() {
   });
 }
 
-// Liest den Status der Checkboxen
 function getAcceptedCategories() {
   const categories = [];
   ['funktional','targeting'].forEach(category => {
@@ -211,7 +205,6 @@ function getAcceptedCategories() {
   return categories;
 }
 
-// Setzt Checkboxen und sichtbare UI
 function setCheckboxes(categories) {
   ['funktional','targeting'].forEach(category => {
     const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
@@ -226,7 +219,6 @@ function setCheckboxes(categories) {
   });
 }
 
-// Entfernt Haken
 function resetCheckboxes() {
   ['funktional','targeting'].forEach(category => {
     const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
