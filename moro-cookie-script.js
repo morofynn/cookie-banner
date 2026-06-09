@@ -1,6 +1,6 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.4 (Dynamische Label-Erkennung für Platzhalter & strikte Sperre)
+   v2.5 (Fix: textContent für versteckte Banner & Bild-Overlay)
    ------------------------- */
 
 if (document.readyState === 'loading') {
@@ -424,24 +424,24 @@ function resetCheckboxes() {
 }
 
 /* -------------------------
-   🆕 HILFSFUNKTION: Extrahiert das benutzerdefinierte Textlabel aus Webflow
+   🎯 FIX: textContent liest auch ausgeblendete/unsichtbare Textlabels aus Webflow
    ------------------------- */
 function getCategoryLabelText(category) {
   const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
   if (wrapper) {
     const labelEl = wrapper.querySelector('.opt-in-label, .w-form-label');
-    if (labelEl && labelEl.innerText && labelEl.innerText.trim() !== '') {
-      return labelEl.innerText.trim();
+    // textContent statt innerText korrigiert den display:none Bug
+    if (labelEl && labelEl.textContent && labelEl.textContent.trim() !== '') {
+      return labelEl.textContent.trim();
     }
   }
-  // Fallback-Werte, falls kein spezifisches Label im Webflow Designer vergeben wurde
   if (category === 'targeting') return 'Marketing / Targeting';
   if (category === 'funktional') return 'Funktionale Cookies';
   return category;
 }
 
 /* -------------------------
-   Platzhalter-Erzeugung mit dynamischem Kategorie-Hinweis
+   Platzhalter-Erzeugung (Mit dynamischem Text + Bild-Schleier-Overlay)
    ------------------------- */
 function createPlaceholder(el, src, width, height, altImg, category) {
   if (el.classList && el.classList.contains('iframe-placeholder')) return;
@@ -474,8 +474,8 @@ function createPlaceholder(el, src, width, height, altImg, category) {
 
   placeholder.style.cssText = `
     z-index: auto; display:flex; justify-content:center; align-items:center;
-    padding: ${altImg ? '0' : '1.5rem'}; width:${width}; height:${height};
-    overflow:hidden; position:relative; text-align: ${computedStyles.textAlign || 'center'};
+    width:${width}; height:${height}; overflow:hidden; position:relative; 
+    text-align: ${computedStyles.textAlign || 'center'};
     background-color: ${computedStyles.backgroundColor || '#f6f6f6'};
     font-family: ${computedStyles.fontFamily || 'sans-serif'}; color: ${computedStyles.color || '#333'};
     font-size: ${computedStyles.fontSize || '1rem'}; line-height: ${computedStyles.lineHeight || '1.4'};
@@ -487,19 +487,32 @@ function createPlaceholder(el, src, width, height, altImg, category) {
   if (category === 'nicht-definiert') {
     categoryNotice = '<br><span style="font-size: 0.85em; font-weight: bold; color: #d93838;">⚠️ Setup-Fehler: Diesem iFrame wurde in Webflow kein "cookiecategory"-Attribut zugewiesen!</span>';
   } else {
-    // 🎯 Zieht sich dynamisch das Label (z.B. "Google Maps" oder "Temin Kalender")
     const displayLabel = getCategoryLabelText(category);
     categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; color: #777;">(Erfordert Kategorie: ${displayLabel})</span>`;
   }
 
+  // Text-Inhalt Container bauen
+  const textWrapper = document.createElement('div');
+  textWrapper.innerHTML = `<div>${demoText}</div>${categoryNotice}`;
+
   if (altImg) {
+    // 🎯 FIX: Falls ein Bild da ist, laden wir das Bild UND legen den Text als Overlay darüber
     const img = document.createElement('img');
     img.src = altImg; img.alt = demoText;
-    img.style.cssText = `width:100%; height:100%; object-fit:cover;`;
+    img.style.cssText = `width:100%; height:100%; object-fit:cover; position:absolute; top:0; left:0; z-index:1;`;
     placeholder.appendChild(img);
+
+    // Text wird als halbtransparente Schicht über das Bild gelegt
+    textWrapper.style.cssText = `
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(246, 246, 246, 0.88); display: flex; flex-direction: column;
+      justify-content: center; align-items: center; padding: 1.5rem; 
+      box-sizing: border-box; z-index: 2;
+    `;
+    placeholder.appendChild(textWrapper);
   } else {
-    const textWrapper = document.createElement('div');
-    textWrapper.innerHTML = `<div>${demoText}</div>${categoryNotice}`;
+    // Kein Bild vorhanden -> Normaler Text im grauen Block
+    textWrapper.style.cssText = `padding: 1.5rem; width: 100%;`;
     placeholder.appendChild(textWrapper);
   }
   
