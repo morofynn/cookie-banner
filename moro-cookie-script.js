@@ -1,6 +1,6 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.2 (inkl. GTM- & iFrame-Diagnose mit Fix-Anleitung)
+   v2.4 (Dynamische Label-Erkennung für Platzhalter & strikte Sperre)
    ------------------------- */
 
 if (document.readyState === 'loading') {
@@ -26,22 +26,26 @@ function initCookieIframes() {
   // Bestehende statische iFrames durch Platzhalter ersetzen
   document.querySelectorAll('iframe[src]').forEach(function(iframe) {
     const src = iframe.src;
+    
+    if (src.startsWith('about:') || src.startsWith('javascript:')) return;
+
     const width = iframe.getAttribute('width') || iframe.style.width || '100%';
     const height = iframe.getAttribute('height') || iframe.style.height || '100%';
     const altImg = iframe.getAttribute('alt-img');
-    const category = iframe.getAttribute('cookiecategory') || iframe.getAttribute('data-cookiecategory');
-
-    // Nur transformieren, wenn eine Kategorie zugewiesen wurde
-    if (category) {
-      iframe.setAttribute('data-src', src);
-      iframe.setAttribute('data-width', width);
-      iframe.setAttribute('data-height', height);
-      if (altImg) iframe.setAttribute('data-alt-img', altImg);
-      iframe.setAttribute('data-cookiecategory', category);
-
-      iframe.removeAttribute('src');
-      createPlaceholder(iframe, src, width, height, altImg, category);
+    
+    let category = iframe.getAttribute('cookiecategory') || iframe.getAttribute('data-cookiecategory');
+    if (!category) {
+      category = 'nicht-definiert';
     }
+
+    iframe.setAttribute('data-src', src);
+    iframe.setAttribute('data-width', width);
+    iframe.setAttribute('data-height', height);
+    if (altImg) iframe.setAttribute('data-alt-img', altImg);
+    iframe.setAttribute('data-cookiecategory', category);
+
+    iframe.removeAttribute('src');
+    createPlaceholder(iframe, src, width, height, altImg, category);
   });
 
   const consent = localStorage.getItem('cookiesAccepted');
@@ -129,22 +133,30 @@ function initCookieIframes() {
         if (node.nodeType === Node.ELEMENT_NODE) {
           const targetIframes = node.tagName === 'IFRAME' ? [node] : node.querySelectorAll('iframe[src]');
           targetIframes.forEach((iframe) => {
-            const category = iframe.getAttribute('cookiecategory') || iframe.getAttribute('data-cookiecategory');
-            if (category) {
-              const currentAccepted = JSON.parse(localStorage.getItem('acceptedCategories') || '[]');
-              if (!currentAccepted.includes(category)) {
-                const src = iframe.src || iframe.getAttribute('data-src');
-                const width = iframe.getAttribute('width') || iframe.style.width || '100%';
-                const height = iframe.getAttribute('height') || iframe.style.height || '100%';
-                const altImg = iframe.getAttribute('alt-img') || iframe.getAttribute('data-alt-img');
-                iframe.setAttribute('data-src', src);
-                iframe.setAttribute('data-width', width);
-                iframe.setAttribute('data-height', height);
-                if (altImg) iframe.setAttribute('data-alt-img', altImg);
-                iframe.setAttribute('data-cookiecategory', category);
-                iframe.removeAttribute('src');
-                createPlaceholder(iframe, src, width, height, altImg, category);
-              }
+            let category = iframe.getAttribute('cookiecategory') || iframe.getAttribute('data-cookiecategory');
+            const src = iframe.src || iframe.getAttribute('data-src');
+            
+            if (src && (src.startsWith('about:') || src.startsWith('javascript:'))) return;
+
+            if (!category) {
+              category = 'nicht-definiert';
+            }
+
+            const currentAccepted = JSON.parse(localStorage.getItem('acceptedCategories') || '[]');
+            
+            if (category === 'nicht-definiert' || !currentAccepted.includes(category)) {
+              const width = iframe.getAttribute('width') || iframe.style.width || '100%';
+              const height = iframe.getAttribute('height') || iframe.style.height || '100%';
+              const altImg = iframe.getAttribute('alt-img') || iframe.getAttribute('data-alt-img');
+              
+              iframe.setAttribute('data-src', src);
+              iframe.setAttribute('data-width', width);
+              iframe.setAttribute('data-height', height);
+              if (altImg) iframe.setAttribute('data-alt-img', altImg);
+              iframe.setAttribute('data-cookiecategory', category);
+              
+              iframe.removeAttribute('src');
+              createPlaceholder(iframe, src, width, height, altImg, category);
             }
           });
         }
@@ -155,12 +167,11 @@ function initCookieIframes() {
   observer.observe(document.body, { childList: true, subtree: true });
 
   /* -------------------------
-     🚨 NEU: UNIVERSALE DIAGNOSE & WARN-POPUP LOGIK
+     🚨 DIAGNOSE & WARN-POPUP LOGIK
      ------------------------- */
   function runMoroDiagnostics() {
     let errors = [];
 
-    // 1. GTM Scan
     const gtmScript = document.querySelector('script[src*="googletagmanager.com/gtm.js"]');
     if (gtmScript) {
       const scripts = Array.from(document.querySelectorAll('script'));
@@ -185,13 +196,11 @@ function initCookieIframes() {
       }
     }
 
-    // 2. iFrame Scan (Sucht nach iFrames ohne Kategorie-Attribut)
     const unsafeIframes = [];
     document.querySelectorAll('iframe').forEach(iframe => {
       const category = iframe.getAttribute('cookiecategory') || iframe.getAttribute('data-cookiecategory');
       const src = iframe.src || iframe.getAttribute('data-src') || iframe.getAttribute('id') || 'Unbekannte Quelle';
       
-      // Standard-interne iFrames (z.B. von Webflow-Designer/Extensions) ausschließen
       if (!category && src && !src.startsWith('about:') && !src.startsWith('javascript:')) {
         unsafeIframes.push(src);
       }
@@ -200,12 +209,11 @@ function initCookieIframes() {
     if (unsafeIframes.length > 0) {
       errors.push({
         type: 'UNGESCHÜTZTE IFRAMES',
-        message: `Es wurden ${unsafeIframes.length} iFrame(s) ohne zugewiesene Cookie-Kategorie gefunden. Diese laden aktuell unblockiert!`,
+        message: `Es wurden ${unsafeIframes.length} iFrame(s) ohne zugewiesene Cookie-Kategorie gefunden. Diese wurden aus Sicherheitsgründen hart blockiert!`,
         sources: unsafeIframes
       });
     }
 
-    // Falls Fehler existieren -> Popup rendern
     if (errors.length > 0) {
       buildWarningPopup(errors);
     }
@@ -235,11 +243,10 @@ function initCookieIframes() {
     errors.forEach(err => {
       popupContent += `
         <div style="background:#ffffff; border-left:5px solid #d93838; padding:15px; margin-bottom:20px; border-radius:4px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-          <strong style="background:#d93838; color:#fff; padding:2px 6px; font-size:11px; border-radius:3px; uppercase;">${err.type}</strong>
+          <strong style="background:#d93838; color:#fff; padding:2px 6px; font-size:11px; border-radius:3px; text-transform: uppercase;">${err.type}</strong>
           <p style="margin:8px 0; font-weight:bold; font-size:14px; color:#c62828;">${err.message}</p>
       `;
 
-      // Spezifischer Fix für GTM-Fehler
       if (err.type.includes('GTM')) {
         const gtmCodeSnippet = `<script>
   window.dataLayer = window.dataLayer || [];
@@ -262,11 +269,10 @@ function initCookieIframes() {
         popupContent += `
           <p style="font-size:12px; margin:5px 0; color:#555;">Kopiere den Code und füge ihn im Webflow-Projekt ganz oben in den <strong>Head Code</strong> ein:</p>
           <textarea readonly style="width:100%; height:110px; font-family:monospace; font-size:11px; padding:6px; border:1px solid #ddd; background:#fafafa; border-radius:4px; box-sizing:border-box; resize:none;">${gtmCodeSnippet}</textarea>
-          <div style="margin-top:8px;"><button class="moro-copy-btn" data-code="${btoa(gtmCodeSnippet)}" style="background:#d93838; color:#white; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">Code in Zwischenablage kopieren</button> <span class="moro-copy-status" style="font-size:12px; color:green; font-weight:bold; margin-left:10px;"></span></div>
+          <div style="margin-top:8px;"><button class="moro-copy-btn" data-code="${btoa(gtmCodeSnippet)}" style="background:#d93838; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold;">Code in Zwischenablage kopieren</button> <span class="moro-copy-status" style="font-size:12px; color:green; font-weight:bold; margin-left:10px;"></span></div>
         `;
       }
 
-      // Spezifischer Fix für unkategorisierte iFrames
       if (err.type === 'UNGESCHÜTZTE IFRAMES') {
         popupContent += `
           <p style="font-size:12px; font-weight:bold; margin-bottom:5px; color:#444;">Betroffene iFrame-Quellen auf dieser Seite:</p>
@@ -303,7 +309,6 @@ function initCookieIframes() {
     popup.innerHTML = popupContent;
     document.body.appendChild(popup);
 
-    // Copy-Button Logik
     popup.querySelectorAll('.moro-copy-btn').forEach(btn => {
       btn.addEventListener('click', function() {
         const rawCode = atob(this.getAttribute('data-code'));
@@ -315,14 +320,13 @@ function initCookieIframes() {
       });
     });
 
-    // Schließen Logik
     document.getElementById('moro-close-diag').addEventListener('click', function() {
       popup.remove();
     });
   }
 
   /* -------------------------
-     Ab hier folgt deine restliche UI- & Helfer-Logik (unverändert)
+     UI- & Helfer-Logik
      ------------------------- */
   function updateAcceptButtonState() {
     if (!acceptBtn) return;
@@ -419,8 +423,29 @@ function resetCheckboxes() {
   });
 }
 
+/* -------------------------
+   🆕 HILFSFUNKTION: Extrahiert das benutzerdefinierte Textlabel aus Webflow
+   ------------------------- */
+function getCategoryLabelText(category) {
+  const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
+  if (wrapper) {
+    const labelEl = wrapper.querySelector('.opt-in-label, .w-form-label');
+    if (labelEl && labelEl.innerText && labelEl.innerText.trim() !== '') {
+      return labelEl.innerText.trim();
+    }
+  }
+  // Fallback-Werte, falls kein spezifisches Label im Webflow Designer vergeben wurde
+  if (category === 'targeting') return 'Marketing / Targeting';
+  if (category === 'funktional') return 'Funktionale Cookies';
+  return category;
+}
+
+/* -------------------------
+   Platzhalter-Erzeugung mit dynamischem Kategorie-Hinweis
+   ------------------------- */
 function createPlaceholder(el, src, width, height, altImg, category) {
   if (el.classList && el.classList.contains('iframe-placeholder')) return;
+  
   const placeholder = document.createElement('div');
   placeholder.className = 'iframe-placeholder';
   if (el.id) placeholder.id = el.id;
@@ -428,7 +453,7 @@ function createPlaceholder(el, src, width, height, altImg, category) {
   placeholder.setAttribute('data-width', width);
   placeholder.setAttribute('data-height', height);
   if (altImg) placeholder.setAttribute('data-alt-img', altImg);
-  if (category) placeholder.setAttribute('data-cookiecategory', category);
+  placeholder.setAttribute('data-cookiecategory', category);
 
   const demoEl = document.querySelector('.iframe-placeholder-demo');
   let computedStyles = {};
@@ -449,13 +474,23 @@ function createPlaceholder(el, src, width, height, altImg, category) {
 
   placeholder.style.cssText = `
     z-index: auto; display:flex; justify-content:center; align-items:center;
-    padding: ${altImg ? '0' : '1rem'}; width:${width}; height:${height};
+    padding: ${altImg ? '0' : '1.5rem'}; width:${width}; height:${height};
     overflow:hidden; position:relative; text-align: ${computedStyles.textAlign || 'center'};
     background-color: ${computedStyles.backgroundColor || '#f6f6f6'};
     font-family: ${computedStyles.fontFamily || 'sans-serif'}; color: ${computedStyles.color || '#333'};
-    font-size: ${computedStyles.fontSize || '1rem'}; line-height: ${computedStyles.lineHeight || '1.2'};
-    font-weight: ${computedStyles.fontWeight || '400'};
+    font-size: ${computedStyles.fontSize || '1rem'}; line-height: ${computedStyles.lineHeight || '1.4'};
+    font-weight: ${computedStyles.fontWeight || '400'}; box-sizing: border-box;
   `;
+
+  // Dynamischen Text je nach Kategorie generieren
+  let categoryNotice = '';
+  if (category === 'nicht-definiert') {
+    categoryNotice = '<br><span style="font-size: 0.85em; font-weight: bold; color: #d93838;">⚠️ Setup-Fehler: Diesem iFrame wurde in Webflow kein "cookiecategory"-Attribut zugewiesen!</span>';
+  } else {
+    // 🎯 Zieht sich dynamisch das Label (z.B. "Google Maps" oder "Temin Kalender")
+    const displayLabel = getCategoryLabelText(category);
+    categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; color: #777;">(Erfordert Kategorie: ${displayLabel})</span>`;
+  }
 
   if (altImg) {
     const img = document.createElement('img');
@@ -463,15 +498,19 @@ function createPlaceholder(el, src, width, height, altImg, category) {
     img.style.cssText = `width:100%; height:100%; object-fit:cover;`;
     placeholder.appendChild(img);
   } else {
-    placeholder.innerText = demoText;
+    const textWrapper = document.createElement('div');
+    textWrapper.innerHTML = `<div>${demoText}</div>${categoryNotice}`;
+    placeholder.appendChild(textWrapper);
   }
+  
   if (el.parentNode) el.parentNode.replaceChild(placeholder, el);
 }
 
 function enableIframes(acceptedCategories = []) {
   document.querySelectorAll('.iframe-placeholder').forEach(function(div) {
     const category = div.getAttribute('data-cookiecategory');
-    if (!category || acceptedCategories.includes(category)) {
+    
+    if (category && category !== 'nicht-definiert' && acceptedCategories.includes(category)) {
       const iframe = document.createElement('iframe');
       if (div.id) iframe.id = div.id;
       iframe.src = div.getAttribute('data-src');
@@ -479,7 +518,7 @@ function enableIframes(acceptedCategories = []) {
       iframe.setAttribute('height', div.getAttribute('data-height'));
       const altImg = div.getAttribute('data-alt-img');
       if (altImg) iframe.setAttribute('alt-img', altImg);
-      if (category) iframe.setAttribute('cookiecategory', category);
+      iframe.setAttribute('cookiecategory', category);
       iframe.style.border = '0';
       if (div.parentNode) div.parentNode.replaceChild(iframe, div);
     }
@@ -493,14 +532,14 @@ function showPlaceholders() {
       const width = el.getAttribute('data-width') || el.width || '100%';
       const height = el.getAttribute('data-height') || el.height || '100%';
       const altImg = el.getAttribute('alt-img') || el.getAttribute('data-alt-img');
-      const category = el.getAttribute('cookiecategory') || el.getAttribute('data-cookiecategory');
+      const category = el.getAttribute('cookiecategory') || el.getAttribute('data-cookiecategory') || 'nicht-definiert';
       createPlaceholder(el, src, width, height, altImg, category);
     } else if (el.tagName === 'DIV') {
       const altImg = el.getAttribute('data-alt-img');
       const width = el.getAttribute('data-width') || '100%';
       const height = el.getAttribute('data-height') || '100%';
       const src = el.getAttribute('data-src') || '';
-      const category = el.getAttribute('data-cookiecategory');
+      const category = el.getAttribute('data-cookiecategory') || 'nicht-definiert';
       createPlaceholder(el, src, width, height, altImg, category);
     }
   });
