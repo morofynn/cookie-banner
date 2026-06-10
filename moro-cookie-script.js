@@ -1,6 +1,6 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.6 (Fix: Style-Erhalt bei iFrames & optimierter Consent Mode)
+   v2.7 (Optimiert für native data-src iFrames & Anti-Leck-Garantie)
    ------------------------- */
 
 if (document.readyState === 'loading') {
@@ -11,7 +11,6 @@ if (document.readyState === 'loading') {
 
 function initCookieIframes() {
   
-  // 🔍 START UNIVERSAL-DIAGNOSE (Scannt GTM & iFrames)
   runMoroDiagnostics();
 
   const consentTime = localStorage.getItem('cookieConsentTime');
@@ -23,10 +22,10 @@ function initCookieIframes() {
     localStorage.removeItem('cookieConsentTime');
   }
 
-  // Bestehende statische iFrames durch Platzhalter ersetzen
-  document.querySelectorAll('iframe[src]').forEach(function(iframe) {
-    const src = iframe.src;
-    if (src.startsWith('about:') || src.startsWith('javascript:')) return;
+  // 🎯 OPTIMIERT: Scannt nun alle iFrames (egal ob mit src oder bereits mit sicherer data-src gebaut)
+  document.querySelectorAll('iframe').forEach(function(iframe) {
+    const src = iframe.src || iframe.getAttribute('data-src');
+    if (!src || src.startsWith('about:') || src.startsWith('javascript:')) return;
 
     const width = iframe.getAttribute('width') || iframe.style.width || '100%';
     const height = iframe.getAttribute('height') || iframe.style.height || '100%';
@@ -37,7 +36,6 @@ function initCookieIframes() {
       category = 'nicht-definiert';
     }
 
-    // Backup der originalen Webflow-Styles und Klassen erstellen
     const origStyle = iframe.getAttribute('style') || '';
     const origClass = iframe.className || '';
 
@@ -112,7 +110,6 @@ function initCookieIframes() {
 
   function updateGTMConsent(categories) {
     window.dataLayer = window.dataLayer || [];
-    // Nutzen der echten globalen Schnittstelle, um Overwrite-Bugs zu verhindern
     const gMode = window.gtag || function() { window.dataLayer.push(arguments); };
     
     const hasTargeting = categories.includes('targeting');
@@ -138,7 +135,7 @@ function initCookieIframes() {
     mutations.forEach((mutation) => {
       mutation.addedNodes.forEach((node) => {
         if (node.nodeType === Node.ELEMENT_NODE) {
-          const targetIframes = node.tagName === 'IFRAME' ? [node] : node.querySelectorAll('iframe[src]');
+          const targetIframes = node.tagName === 'IFRAME' ? [node] : node.querySelectorAll('iframe');
           targetIframes.forEach((iframe) => {
             let category = iframe.getAttribute('cookiecategory') || iframe.getAttribute('data-cookiecategory');
             const src = iframe.src || iframe.getAttribute('data-src');
@@ -362,7 +359,6 @@ function initCookieIframes() {
     placeholder.className = 'iframe-placeholder';
     if (el.id) placeholder.id = el.id;
     
-    // Bestehende Attribute durchreichen
     placeholder.setAttribute('data-src', src);
     placeholder.setAttribute('data-width', width);
     placeholder.setAttribute('data-height', height);
@@ -444,7 +440,6 @@ function initCookieIframes() {
         if (altImg) iframe.setAttribute('alt-img', altImg);
         iframe.setAttribute('cookiecategory', category);
         
-        // 🎯 STYLES & KLASSEN REAKTIVIEREN
         const origStyle = div.getAttribute('data-orig-style');
         const origClass = div.getAttribute('data-orig-class');
         if (origStyle) iframe.setAttribute('style', origStyle);
@@ -470,7 +465,7 @@ function initCookieIframes() {
         const width = el.getAttribute('data-width') || '100%';
         const height = el.getAttribute('data-height') || '100%';
         const src = el.getAttribute('data-src') || '';
-        const category = div.getAttribute('data-cookiecategory') || 'nicht-definiert';
+        const category = el.getAttribute('data-cookiecategory') || 'nicht-definiert';
         createPlaceholder(el, src, width, height, altImg, category);
       }
     });
