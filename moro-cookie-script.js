@@ -1,6 +1,6 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.4-fixed (Style-Erhalt bei iFrames & Consent-Fix)
+   v2.4-fixed (Webflow Checkbox-Fix & Style-Erhalt)
    ------------------------- */
 
 if (document.readyState === 'loading') {
@@ -38,7 +38,7 @@ function initCookieIframes() {
       category = 'nicht-definiert';
     }
 
-    // 🎯 NEU: Originale Styles und Klassen vor dem Umbau sichern
+    // 🎯 Originale Webflow CSS-Klassen und Inline-Styles (z.B. border-radius) sichern
     const origStyle = iframe.getAttribute('style') || '';
     const origClass = iframe.className || '';
 
@@ -104,7 +104,15 @@ function initCookieIframes() {
     });
   }
 
+  // 🎯 FIX: Überwacht sowohl Klicks auf die Webflow-Wrapper als auch native Änderungen
   ['funktional','targeting'].forEach(category => {
+    const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
+    if (wrapper) {
+      wrapper.addEventListener('click', function() {
+        // Kurzer Timeout, damit Webflow den Haken im Hintergrund setzen kann, bevor wir prüfen
+        setTimeout(updateAcceptButtonState, 50);
+      });
+    }
     const input = document.querySelector('.opt-in-wrapper.is-' + category + ' input[type="checkbox"]');
     if (input) input.addEventListener('change', updateAcceptButtonState);
   });
@@ -113,18 +121,25 @@ function initCookieIframes() {
 
   function updateGTMConsent(categories) {
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+    
     const hasTargeting = categories.includes('targeting');
     const hasFunktional = categories.includes('funktional');
 
-    gtag('consent', 'update', {
+    const consentSettings = {
       'analytics_storage': hasTargeting ? 'granted' : 'denied',
       'ad_storage': hasTargeting ? 'granted' : 'denied',
       'ad_user_data': hasTargeting ? 'granted' : 'denied',
       'ad_personalization': hasTargeting ? 'granted' : 'denied',
       'functionality_storage': hasFunktional ? 'granted' : 'denied',
       'personalization_storage': hasFunktional ? 'granted' : 'denied'
-    });
+    };
+
+    // 🎯 FIX: Verhindert unberechtigte Cookie-Erhöhungen auf keksfreien Seiten
+    if (window.gtag) {
+      window.gtag('consent', 'update', consentSettings);
+    } else {
+      window.dataLayer.push(['consent', 'update', consentSettings]);
+    }
 
     window.dataLayer.push({
       'event': 'cookie_consent_updated',
@@ -362,7 +377,7 @@ function initCookieIframes() {
     placeholder.className = 'iframe-placeholder';
     if (el.id) placeholder.id = el.id;
     
-    // 🎯 Sichert Styles direkt im Platzhalter
+    // Originale Attribute im Platzhalter für die spätere Reaktivierung mitspeichern
     placeholder.setAttribute('data-src', src);
     placeholder.setAttribute('data-width', width);
     placeholder.setAttribute('data-height', height);
@@ -460,7 +475,6 @@ function initCookieIframes() {
         const width = el.getAttribute('data-width') || '100%';
         const height = el.getAttribute('data-height') || '100%';
         const src = el.getAttribute('data-src') || '';
-        // 🎯 FIX: Hier stand vorher 'div.getAttribute' statt 'el.getAttribute', was den Absturz verursacht hat!
         const category = el.getAttribute('data-cookiecategory') || 'nicht-definiert'; 
         createPlaceholder(el, src, width, height, altImg, category);
       }
