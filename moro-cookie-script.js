@@ -1,6 +1,6 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.5.6 (Fix: Rahmen-Design optimiert für hochwertigen Look)
+   v2.5.5 (Dynamischer Kontrast-Scanner & Dimensions-Stabilität)
    ------------------------- */
 
 if (document.readyState === 'loading') {
@@ -17,117 +17,7 @@ function initCookieIframes() {
   const consentTime = localStorage.getItem('cookieConsentTime');
   const expirationPeriod = 180 * 24 * 60 * 60 * 1000; 
 
-  // Hilfsfunktion zur Bereinigung von Webflow-Dimensionen
-  function cleanDimension(val) {
-    if (!val) return '100%';
-    val = val.toString().trim();
-    if (/^\d+$/.test(val)) return val + 'px';
-    return val;
-  }
-
-  // Bestehende statische iFrames durch Platzhalter ersetzen
-  document.querySelectorAll('iframe[src]').forEach(function(iframe) {
-    const src = iframe.src;
-    
-    if (src.startsWith('about:') || src.startsWith('javascript:')) return;
-
-    const width = cleanDimension(iframe.getAttribute('width') || iframe.style.width);
-    const height = cleanDimension(iframe.getAttribute('height') || iframe.style.height);
-    const altImg = iframe.getAttribute('alt-img');
-    
-    let category = iframe.getAttribute('cookiecategory') || iframe.getAttribute('data-cookiecategory');
-    if (!category) {
-      category = 'nicht-definiert';
-    }
-
-    // Originale Styles und Klassen sichern
-    const origStyle = iframe.getAttribute('style') || '';
-    const origClass = iframe.className || '';
-
-    iframe.setAttribute('data-src', src);
-    iframe.setAttribute('data-width', width);
-    iframe.setAttribute('data-height', height);
-    iframe.setAttribute('data-orig-style', origStyle);
-    iframe.setAttribute('data-orig-class', origClass);
-    if (altImg) iframe.setAttribute('data-alt-img', altImg);
-    iframe.setAttribute('data-cookiecategory', category);
-
-    iframe.removeAttribute('src');
-    createPlaceholder(iframe, src, width, height, altImg, category);
-  });
-
-  const consent = localStorage.getItem('cookiesAccepted');
-  const acceptedCategories = JSON.parse(localStorage.getItem('acceptedCategories') || '[]');
-
-  if (consent === 'true') {
-    setCheckboxes(acceptedCategories);
-    enableIframes(acceptedCategories);
-    updateGTMConsent(acceptedCategories); 
-  } else if (consent === 'false') {
-    resetCheckboxes();
-    showPlaceholders();
-    updateGTMConsent([]); 
-  } else {
-    showPlaceholders();
-    setVisualPrechecked();
-
-    const cookieIcon = document.querySelector('#cookie-icon');
-    if (cookieIcon) cookieIcon.click();
-  }
-
-  const acceptBtn = document.querySelector('#accept-btn');
-  const declineBtn = document.querySelector('#decline-btn');
-
-  if (acceptBtn) {
-    acceptBtn.addEventListener('click', function() {
-      const accepted = getAcceptedCategories();
-      if (accepted.length === 0) {
-        interceptClick(); 
-        return;
-      }
-      localStorage.setItem('cookiesAccepted', 'true');
-      localStorage.setItem('acceptedCategories', JSON.stringify(accepted));
-      localStorage.setItem('cookieConsentTime', Date.now().toString()); 
-      enableIframes(accepted);
-      updateGTMConsent(accepted); 
-      updateAcceptButtonState();
-    });
-  }
-
-  if (declineBtn) {
-    declineBtn.addEventListener('click', function() {
-      localStorage.setItem('cookiesAccepted', 'false');
-      localStorage.setItem('acceptedCategories', '[]');
-      localStorage.setItem('cookieConsentTime', Date.now().toString()); 
-      resetCheckboxes();
-      showPlaceholders();
-      updateGTMConsent([]); 
-      updateAcceptButtonState();
-    });
-  }
-
-  ['funktional','targeting'].forEach(category => {
-    const input = document.querySelector('.opt-in-wrapper.is-' + category +<script>
-/* -------------------------
-   Cookie Banner MORO
-   v2.5.6 (Fix: Rahmen-Design optimiert für hochwertigen Look)
-   ------------------------- */
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initCookieIframes);
-} else {
-  initCookieIframes();
-}
-
-function initCookieIframes() {
-  
-  // 🔍 START UNIVERSAL-DIAGNOSE (Scannt GTM & iFrames)
-  runMoroDiagnostics();
-
-  const consentTime = localStorage.getItem('cookieConsentTime');
-  const expirationPeriod = 180 * 24 * 60 * 60 * 1000; 
-
-  // Hilfsfunktion zur Bereinigung von Webflow-Dimensionen
+  // Hilfsfunktion zur Bereinigung von Webflow-Dimensionen (konvertiert nackte Zahlen in px)
   function cleanDimension(val) {
     if (!val) return '100%';
     val = val.toString().trim();
@@ -560,7 +450,7 @@ function getCategoryLabelText(category) {
 }
 
 /* -------------------------
-   Platzhalter-Erzeugung (v2.5.6 Rahmen-Update)
+   Platzhalter-Erzeugung (v2.5.5 Adaptive Helligkeit & Zentrierungs-Fix)
    ------------------------- */
 function createPlaceholder(el, src, width, height, altImg, category) {
   if (el.classList && el.classList.contains('iframe-placeholder')) return;
@@ -582,8 +472,8 @@ function createPlaceholder(el, src, width, height, altImg, category) {
 
   let demoText = 'Bitte stimmen Sie der Verwendung von Cookies zu, um den Inhalt zu laden.';
 
-  // ANALYSE DER SEITEN-HELLIGKEIT
-  let parentBg = 'rgba(255, 255, 255, 1)'; 
+  // 1. 🎯 ANALYSE DER SEITEN-HELLIGKEIT (Sucht die reale Hintergrundfarbe des Eltern-Elements)
+  let parentBg = 'rgba(255, 255, 255, 1)'; // Fallback weiß
   let parent = el.parentNode;
   while (parent) {
     const computedBg = window.getComputedStyle(parent).backgroundColor;
@@ -594,6 +484,7 @@ function createPlaceholder(el, src, width, height, altImg, category) {
     parent = parent.parentElement;
   }
 
+  // Luminanz-Berechnung, um zu wissen, ob die Website hell oder dunkel gemoddet ist
   let isDarkPage = false;
   const rgbValues = parentBg.match(/\d+/g);
   if (rgbValues && rgbValues.length >= 3) {
@@ -601,11 +492,11 @@ function createPlaceholder(el, src, width, height, altImg, category) {
     const g = parseInt(rgbValues[1], 10);
     const b = parseInt(rgbValues[2], 10);
     const luminance = (r * 299 + g * 587 + b * 114) / 1000;
-    if (luminance <= 130) isDarkPage = true; 
+    if (luminance <= 130) isDarkPage = true; // Seite ist dunkel
   }
 
-  // PLATZHALTER GRUND-STYLING
-  placeholder.style.cssText = origStyle; // border-radius übernehmen
+  // 2. 🎯 VISUELLE MAßSCHNEIDEREI JE NACH FOREN-THEME
+  placeholder.style.cssText = origStyle; // Übernimmt border-radius des Original-iFrames
   placeholder.style.width = width;
   placeholder.style.height = height;
   placeholder.style.display = 'flex';
@@ -613,19 +504,16 @@ function createPlaceholder(el, src, width, height, altImg, category) {
   placeholder.style.alignItems = 'center';
   placeholder.style.boxSizing = 'border-box';
 
-  // 🎯 NEU: ADAPTIVER HOCHWERTIGER RAHMEN (Solid statt Dashed)
-  let textColor = '#2b2b2b';
+  let textColor = '#2b2b2b'; // Standard light theme text
   if (isDarkPage) {
+    // Styling für dunkle Designs (z.B. Kinderoptik Dunkel)
     placeholder.style.backgroundColor = 'rgba(25, 25, 25, 0.75)';
-    // Subtiler, heller Solider Rahmen für dunklen BG + Leichter Tiefeneffekt
-    placeholder.style.border = '1px solid rgba(255, 255, 255, 0.12)';
-    placeholder.style.boxShadow = 'inset 0 0 12px rgba(0,0,0,0.2)'; 
+    placeholder.style.border = '1px dashed rgba(255, 255, 255, 0.15)';
     textColor = '#ffffff'; 
   } else {
+    // Styling für helle Designs
     placeholder.style.backgroundColor = 'rgba(240, 240, 240, 0.85)';
-    // Subtiler, dunkler Solider Rahmen für hellen BG
-    placeholder.style.border = '1px solid rgba(0, 0, 0, 0.08)';
-    placeholder.style.boxShadow = 'none';
+    placeholder.style.border = '1px dashed rgba(0, 0, 0, 0.15)';
     textColor = '#2b2b2b';
   }
 
@@ -637,7 +525,7 @@ function createPlaceholder(el, src, width, height, altImg, category) {
     categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; opacity: 0.75;">(Erfordert Kategorie: ${displayLabel})</span>`;
   }
 
-  // TEXT-WRAPPER FÜR ZENTRIERUNG
+  // 3. 🎯 FLEX-WRAPPER FÜR ABSOLUTE, MULTILINE TEXT-ZENTRIERUNG
   const textWrapper = document.createElement('div');
   textWrapper.style.cssText = `
     width: 100%;
@@ -694,6 +582,7 @@ function enableIframes(acceptedCategories = []) {
 
 function showPlaceholders() {
   document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
+    // Hilfsfunktion zur Bereinigung innerhalb verschachtelter Selektoren
     function cleanDim(val) {
       if (!val) return '100%';
       val = val.toString().trim();
@@ -724,4 +613,3 @@ function showPlaceholders() {
     }
   });
 }
-</script>
