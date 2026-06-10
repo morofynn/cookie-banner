@@ -1,6 +1,6 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.4-fixed (Style-Erhalt bei iFrames & optimierter Consent Mode)
+   v2.4-fixed (Style-Erhalt bei iFrames & Consent-Fix)
    ------------------------- */
 
 if (document.readyState === 'loading') {
@@ -38,7 +38,7 @@ function initCookieIframes() {
       category = 'nicht-definiert';
     }
 
-    // 🎯 NEU: Originale Styles und Klassen vor dem Löschen sichern
+    // 🎯 NEU: Originale Styles und Klassen vor dem Umbau sichern
     const origStyle = iframe.getAttribute('style') || '';
     const origClass = iframe.className || '';
 
@@ -113,14 +113,11 @@ function initCookieIframes() {
 
   function updateGTMConsent(categories) {
     window.dataLayer = window.dataLayer || [];
-    
-    // 🎯 FIX: Nutzt die native globale gtag-Schnittstelle statt lokaler Überschreibung
-    const gMode = window.gtag || function() { window.dataLayer.push(arguments); };
-    
+    function gtag(){dataLayer.push(arguments);}
     const hasTargeting = categories.includes('targeting');
     const hasFunktional = categories.includes('funktional');
 
-    gMode('consent', 'update', {
+    gtag('consent', 'update', {
       'analytics_storage': hasTargeting ? 'granted' : 'denied',
       'ad_storage': hasTargeting ? 'granted' : 'denied',
       'ad_user_data': hasTargeting ? 'granted' : 'denied',
@@ -158,7 +155,6 @@ function initCookieIframes() {
               const height = iframe.getAttribute('height') || iframe.style.height || '100%';
               const altImg = iframe.getAttribute('alt-img') || iframe.getAttribute('data-alt-img');
               
-              // 🎯 NEU: Styles auch im MutationObserver für dynamische iFrames sichern
               const origStyle = iframe.getAttribute('style') || '';
               const origClass = iframe.className || '';
               
@@ -366,7 +362,7 @@ function initCookieIframes() {
     placeholder.className = 'iframe-placeholder';
     if (el.id) placeholder.id = el.id;
     
-    // 🎯 Styles und Klassen im Platzhalter für die spätere Reaktivierung zwischenspeichern
+    // 🎯 Sichert Styles direkt im Platzhalter
     placeholder.setAttribute('data-src', src);
     placeholder.setAttribute('data-width', width);
     placeholder.setAttribute('data-height', height);
@@ -438,7 +434,7 @@ function initCookieIframes() {
         if (altImg) iframe.setAttribute('alt-img', altImg);
         iframe.setAttribute('cookiecategory', category);
         
-        // 🎯 NEU: Wiederherstellung der ursprünglichen CSS-Klassen und Styles (wie border-radius)
+        // 🎯 Reaktiviert originale Styles (border-radius, etc.) und Klassen aus Webflow
         const origStyle = div.getAttribute('data-orig-style');
         const origClass = div.getAttribute('data-orig-class');
         if (origStyle) iframe.setAttribute('style', origStyle);
@@ -464,7 +460,8 @@ function initCookieIframes() {
         const width = el.getAttribute('data-width') || '100%';
         const height = el.getAttribute('data-height') || '100%';
         const src = el.getAttribute('data-src') || '';
-        const category = el.getAttribute('data-cookiecategory') || 'nicht-definiert';
+        // 🎯 FIX: Hier stand vorher 'div.getAttribute' statt 'el.getAttribute', was den Absturz verursacht hat!
+        const category = el.getAttribute('data-cookiecategory') || 'nicht-definiert'; 
         createPlaceholder(el, src, width, height, altImg, category);
       }
     });
