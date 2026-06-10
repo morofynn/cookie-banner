@@ -1,6 +1,6 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.6.0 (Deep-Glow Edition — Stabile Geometrie & Kontrast-Scanner)
+   v2.5.6 (Deep-Glow Edition auf v2.5.5 Basis)
    ------------------------- */
 
 if (document.readyState === 'loading') {
@@ -339,183 +339,279 @@ function initCookieIframes() {
   }
 
   /* -------------------------
-     Label-Erkennung aus Webflow
+     UI- & Helfer-Logik
      ------------------------- */
-  function getCategoryLabelText(category) {
+  function updateAcceptButtonState() {
+    if (!acceptBtn) return;
+    const accepted = getAcceptedCategories();
+    acceptBtn.removeEventListener('click', interceptClick, true);
+    acceptBtn.removeEventListener('touchstart', interceptClick, true);
+    if (accepted.length === 0) {
+      acceptBtn.addEventListener('click', interceptClick, true);
+      acceptBtn.addEventListener('touchstart', interceptClick, true);
+      acceptBtn.style.cursor = 'not-allowed';
+    } else {
+      acceptBtn.style.cursor = 'pointer';
+    }
+  }
+
+  // Wackeln und Klick abfangen
+  function interceptClick(e) {
+    if (e) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      wiggleOnce(e.currentTarget);
+    }
+  }
+
+  function wiggleOnce(btn) {
+    let i = 0;
+    const angles = [0, -10, 10, -8, 8, -5, 5, 0];
+    const interval = 30;
+    const wiggleInterval = setInterval(() => {
+      btn.style.transform = `rotate(${angles[i]}deg)`;
+      i++;
+      if (i >= angles.length) {
+        clearInterval(wiggleInterval);
+        btn.style.transform = 'none';
+      }
+    }, interval);
+  }
+}
+
+function setVisualPrechecked() {
+  ['funktional','targeting'].forEach(category => {
     const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
     if (wrapper) {
-      const labelEl = wrapper.querySelector('.opt-in-label, .w-form-label');
-      if (labelEl && labelEl.innerText && labelEl.innerText.trim() !== '') {
-        return labelEl.innerText.trim();
+      const visual = wrapper.querySelector('.w-checkbox-input');
+      if (visual) visual.classList.add('w--redirected-checked');
+      const input = wrapper.querySelector('input[type="checkbox"]');
+      if (input) input.checked = true;
+    }
+  });
+}
+
+function precheckedToChecked() {
+  ['funktional','targeting'].forEach(category => {
+    const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
+    if (wrapper) {
+      const visual = wrapper.querySelector('.w-checkbox-input');
+      const input = wrapper.querySelector('input[type="checkbox"]');
+      if (visual && visual.classList.contains('w--redirected-checked') && input) {
+        input.checked = true;
       }
     }
-    if (category === 'targeting') return 'Marketing / Targeting';
-    if (category === 'funktional') return 'Funktionale Cookies';
-    return category;
+  });
+}
+
+function getAcceptedCategories() {
+  const categories = [];
+  ['funktional','targeting'].forEach(category => {
+    const input = document.querySelector('.opt-in-wrapper.is-' + category + ' input[type="checkbox"]');
+    if (input?.checked) categories.push(category);
+  });
+  return categories;
+}
+
+function setCheckboxes(categories) {
+  ['funktional','targeting'].forEach(category => {
+    const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
+    const input = wrapper?.querySelector('input[type="checkbox"]');
+    const visual = wrapper?.querySelector('.w-checkbox-input');
+    if (!wrapper || !input || !visual) return;
+    const checked = categories.includes(category);
+    input.checked = checked;
+    if (checked) visual.classList.add('w--redirected-checked');
+    else visual.classList.remove('w--redirected-checked');
+  });
+}
+
+function resetCheckboxes() {
+  ['funktional','targeting'].forEach(category => {
+    const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
+    if (!wrapper) return;
+    const input = wrapper.querySelector('input[type="checkbox"]');
+    const visual = wrapper.querySelector('.w-checkbox-input');
+    if (input) input.checked = false;
+    if (visual) visual.classList.remove('w--redirected-checked');
+  });
+}
+
+function getCategoryLabelText(category) {
+  const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
+  if (wrapper) {
+    const labelEl = wrapper.querySelector('.opt-in-label, .w-form-label');
+    if (labelEl && labelEl.innerText && labelEl.innerText.trim() !== '') {
+      return labelEl.innerText.trim();
+    }
+  }
+  if (category === 'targeting') return 'Marketing / Targeting';
+  if (category === 'funktional') return 'Funktionale Cookies';
+  return category;
+}
+
+/* -------------------------
+   Platzhalter-Erzeugung (v2.5.5-based mit Deep-Glow Rahmen)
+   ------------------------- */
+function createPlaceholder(el, src, width, height, altImg, category) {
+  if (el.classList && el.classList.contains('iframe-placeholder')) return;
+  
+  const placeholder = document.createElement('div');
+  placeholder.className = 'iframe-placeholder';
+  if (el.id) placeholder.id = el.id;
+  
+  const origStyle = el.getAttribute('data-orig-style') || el.getAttribute('style') || '';
+  const origClass = el.getAttribute('data-orig-class') || el.className || '';
+  
+  placeholder.setAttribute('data-src', src);
+  placeholder.setAttribute('data-width', width);
+  placeholder.setAttribute('data-height', height);
+  placeholder.setAttribute('data-orig-style', origStyle);
+  placeholder.setAttribute('data-orig-class', origClass);
+  if (altImg) placeholder.setAttribute('data-alt-img', altImg);
+  placeholder.setAttribute('data-cookiecategory', category);
+
+  let demoText = 'Bitte stimmen Sie der Verwendung von Cookies zu, um den Inhalt zu laden.';
+
+  // 1. 🎯 ANALYSE DER SEITEN-HELLIGKEIT (Sucht die reale Hintergrundfarbe des Eltern-Elements)
+  let parentBg = 'rgba(255, 255, 255, 1)'; // Fallback weiß
+  let parent = el.parentNode;
+  while (parent) {
+    const computedBg = window.getComputedStyle(parent).backgroundColor;
+    if (computedBg && computedBg !== 'transparent' && computedBg !== 'rgba(0, 0, 0, 0)' && computedBg !== 'rgba(0,0,0,0)') {
+      parentBg = computedBg;
+      break;
+    }
+    parent = parent.parentElement;
   }
 
-  /* -------------------------
-     Platzhalter-Erzeugung (v2.6.0 Adaptive Deep-Glow Edition)
-     ------------------------- */
-  function createPlaceholder(el, src, width, height, altImg, category) {
-    if (el.classList && el.classList.contains('iframe-placeholder')) return;
-    
-    const placeholder = document.createElement('div');
-    placeholder.className = 'iframe-placeholder';
-    if (el.id) placeholder.id = el.id;
-    
-    const origStyle = el.getAttribute('data-orig-style') || el.getAttribute('style') || '';
-    const origClass = el.getAttribute('data-orig-class') || el.className || '';
-    
-    placeholder.setAttribute('data-src', src);
-    placeholder.setAttribute('data-width', width);
-    placeholder.setAttribute('data-height', height);
-    placeholder.setAttribute('data-orig-style', origStyle);
-    placeholder.setAttribute('data-orig-class', origClass);
-    if (altImg) placeholder.setAttribute('data-alt-img', altImg);
-    placeholder.setAttribute('data-cookiecategory', category);
-
-    let demoText = 'Bitte stimmen Sie der Verwendung von Cookies zu, um den Inhalt zu laden.';
-
-    // 1. 🎯 ANALYSE DER SEITEN-HELLIGKEIT (Sucht die reale Hintergrundfarbe des Eltern-Elements)
-    let parentBg = 'rgba(255, 255, 255, 1)'; 
-    let parent = el.parentNode;
-    while (parent) {
-      const computedBg = window.getComputedStyle(parent).backgroundColor;
-      if (computedBg && computedBg !== 'transparent' && computedBg !== 'rgba(0, 0, 0, 0)' && computedBg !== 'rgba(0,0,0,0)') {
-        parentBg = computedBg;
-        break;
-      }
-      parent = parent.parentElement;
-    }
-
-    let isDarkPage = false;
-    const rgbValues = parentBg.match(/\d+/g);
-    if (rgbValues && rgbValues.length >= 3) {
-      const r = parseInt(rgbValues[0], 10);
-      const g = parseInt(rgbValues[1], 10);
-      const b = parseInt(rgbValues[2], 10);
-      const luminance = (r * 299 + g * 587 + b * 114) / 1000;
-      if (luminance <= 130) isDarkPage = true; 
-    }
-
-    // 2. 🎯 VISUELLE MAßSCHNEIDEREI (border-radius Vererbung + exakte Formstabilität)
-    placeholder.style.cssText = origStyle; 
-    placeholder.style.width = width;
-    placeholder.style.height = height;
-    placeholder.style.display = 'flex';
-    placeholder.style.justifyContent = 'center';
-    placeholder.style.alignItems = 'center';
-    placeholder.style.boxSizing = 'border-box';
-
-    let textColor = '#2b2b2b'; 
-    if (isDarkPage) {
-      // 💎 DEEP-GLOW DARK (Optimiert für Kinderoptik Dunkel)
-      placeholder.style.backgroundColor = 'rgba(20, 20, 20, 0.8)';
-      placeholder.style.border = '1px solid rgba(255, 255, 255, 0.08)';
-      placeholder.style.boxShadow = 'inset 0 0 20px rgba(255, 255, 255, 0.03)';
-      textColor = '#ffffff'; 
-    } else {
-      // 💎 DEEP-GLOW LIGHT (Optimiert für helle Sektionen)
-      placeholder.style.backgroundColor = 'rgba(245, 245, 245, 0.9)';
-      placeholder.style.border = '1px solid rgba(0, 0, 0, 0.06)';
-      placeholder.style.boxShadow = 'inset 0 0 20px rgba(0, 0, 0, 0.02)';
-      textColor = '#2b2b2b';
-    }
-
-    let categoryNotice = '';
-    if (category === 'nicht-definiert') {
-      categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; color: ${isDarkPage ? '#ff6b6b' : '#d93838'};">⚠️ Setup-Fehler: Diesem iFrame wurde in Webflow kein "cookiecategory"-Attribut zugewiesen!</span>`;
-    } else {
-      const displayLabel = getCategoryLabelText(category);
-      categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; opacity: 0.75;">(Erfordert Kategorie: ${displayLabel})</span>`;
-    }
-
-    // 3. 🎯 FLEX-WRAPPER FÜR ABSOLUTE, MULTILINE TEXT-ZENTRIERUNG
-    const textWrapper = document.createElement('div');
-    textWrapper.style.cssText = `
-      width: 100%;
-      padding: 1.5rem;
-      box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      font-family: sans-serif;
-      font-size: 14px;
-      line-height: 1.5;
-      color: ${textColor};
-    `;
-
-    if (altImg) {
-      const img = document.createElement('img');
-      img.src = altImg; img.alt = demoText;
-      img.style.cssText = `width:100%; height:100%; object-fit:cover;`;
-      placeholder.appendChild(img);
-    } else {
-      textWrapper.innerHTML = `<div>${demoText}</div>${categoryNotice}`;
-      placeholder.appendChild(textWrapper);
-    }
-    
-    if (el.parentNode) el.parentNode.replaceChild(placeholder, el);
+  // Luminanz-Berechnung, um zu wissen, ob die Website hell oder dunkel gemoddet ist
+  let isDarkPage = false;
+  const rgbValues = parentBg.match(/\d+/g);
+  if (rgbValues && rgbValues.length >= 3) {
+    const r = parseInt(rgbValues[0], 10);
+    const g = parseInt(rgbValues[1], 10);
+    const b = parseInt(rgbValues[2], 10);
+    const luminance = (r * 299 + g * 587 + b * 114) / 1000;
+    if (luminance <= 130) isDarkPage = true; // Seite ist dunkel
   }
 
-  function enableIframes(acceptedCategories = []) {
-    document.querySelectorAll('.iframe-placeholder').forEach(function(div) {
-      const category = div.getAttribute('data-cookiecategory');
+  // 2. 🎯 VISUELLE MAßSCHNEIDEREI JE NACH FOREN-THEME
+  placeholder.style.cssText = origStyle; // Übernimmt border-radius des Original-iFrames
+  placeholder.style.width = width;
+  placeholder.style.height = height;
+  placeholder.style.display = 'flex';
+  placeholder.style.justifyContent = 'center';
+  placeholder.style.alignItems = 'center';
+  placeholder.style.boxSizing = 'border-box';
+
+  let textColor = '#2b2b2b'; // Standard light theme text
+  if (isDarkPage) {
+    // 💎 DEEP-GLOW DARK (Optimiert für Kinderoptik Dunkel)
+    placeholder.style.backgroundColor = 'rgba(20, 20, 20, 0.8)';
+    placeholder.style.border = '1px solid rgba(255, 255, 255, 0.08)';
+    placeholder.style.boxShadow = 'inset 0 0 20px rgba(255, 255, 255, 0.03)';
+    textColor = '#ffffff'; 
+  } else {
+    // 💎 DEEP-GLOW LIGHT (Optimiert für helle Sektionen)
+    placeholder.style.backgroundColor = 'rgba(245, 245, 245, 0.9)';
+    placeholder.style.border = '1px solid rgba(0, 0, 0, 0.06)';
+    placeholder.style.boxShadow = 'inset 0 0 20px rgba(0, 0, 0, 0.02)';
+    textColor = '#2b2b2b';
+  }
+
+  let categoryNotice = '';
+  if (category === 'nicht-definiert') {
+    categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; color: ${isDarkPage ? '#ff6b6b' : '#d93838'};">⚠️ Setup-Fehler: Diesem iFrame wurde in Webflow kein "cookiecategory"-Attribut zugewiesen!</span>`;
+  } else {
+    const displayLabel = getCategoryLabelText(category);
+    categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; opacity: 0.75;">(Erfordert Kategorie: ${displayLabel})</span>`;
+  }
+
+  // 3. 🎯 FLEX-WRAPPER FÜR ABSOLUTE, MULTILINE TEXT-ZENTRIERUNG
+  const textWrapper = document.createElement('div');
+  textWrapper.style.cssText = `
+    width: 100%;
+    padding: 1.5rem;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-family: sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: ${textColor};
+  `;
+
+  if (altImg) {
+    const img = document.createElement('img');
+    img.src = altImg; img.alt = demoText;
+    img.style.cssText = `width:100%; height:100%; object-fit:cover;`;
+    placeholder.appendChild(img);
+  } else {
+    textWrapper.innerHTML = `<div>${demoText}</div>${categoryNotice}`;
+    placeholder.appendChild(textWrapper);
+  }
+  
+  if (el.parentNode) el.parentNode.replaceChild(placeholder, el);
+}
+
+function enableIframes(acceptedCategories = []) {
+  document.querySelectorAll('.iframe-placeholder').forEach(function(div) {
+    const category = div.getAttribute('data-cookiecategory');
+    
+    if (category && category !== 'nicht-definiert' && acceptedCategories.includes(category)) {
+      const iframe = document.createElement('iframe');
+      if (div.id) iframe.id = div.id;
+      iframe.src = div.getAttribute('data-src');
+      iframe.setAttribute('width', div.getAttribute('data-width'));
+      iframe.setAttribute('height', div.getAttribute('data-height'));
+      const altImg = div.getAttribute('data-alt-img');
+      if (altImg) iframe.setAttribute('alt-img', altImg);
+      iframe.setAttribute('cookiecategory', category);
       
-      if (category && category !== 'nicht-definiert' && acceptedCategories.includes(category)) {
-        const iframe = document.createElement('iframe');
-        if (div.id) iframe.id = div.id;
-        iframe.src = div.getAttribute('data-src');
-        iframe.setAttribute('width', div.getAttribute('data-width'));
-        iframe.setAttribute('height', div.getAttribute('data-height'));
-        const altImg = div.getAttribute('data-alt-img');
-        if (altImg) iframe.setAttribute('alt-img', altImg);
-        iframe.setAttribute('cookiecategory', category);
-        
-        const origStyle = div.getAttribute('data-orig-style');
-        const origClass = div.getAttribute('data-orig-class');
-        if (origStyle) iframe.setAttribute('style', origStyle);
-        if (origClass) iframe.className = origClass;
-        else iframe.style.border = '0';
-        
-        if (div.parentNode) div.parentNode.replaceChild(iframe, div);
-      }
-    });
-  }
+      const origStyle = div.getAttribute('data-orig-style');
+      const origClass = div.getAttribute('data-orig-class');
+      if (origStyle) iframe.setAttribute('style', origStyle);
+      if (origClass) iframe.className = origClass;
+      else iframe.style.border = '0';
+      
+      if (div.parentNode) div.parentNode.replaceChild(iframe, div);
+    }
+  });
+}
 
-  function showPlaceholders() {
-    document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
-      function cleanDim(val) {
-        if (!val) return '100%';
-        val = val.toString().trim();
-        if (/^\d+$/.test(val)) return val + 'px';
-        return val;
-      }
+function showPlaceholders() {
+  document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
+    function cleanDim(val) {
+      if (!val) return '100%';
+      val = val.toString().trim();
+      if (/^\d+$/.test(val)) return val + 'px';
+      return val;
+    }
 
-      if (el.tagName === 'IFRAME') {
-        const src = el.getAttribute('data-src') || el.src;
-        const width = cleanDim(el.getAttribute('data-width') || el.width || '100%');
-        const height = cleanDim(el.getAttribute('data-height') || el.height || '100%');
-        const altImg = el.getAttribute('alt-img') || el.getAttribute('data-alt-img');
-        const category = el.getAttribute('cookiecategory') || el.getAttribute('data-cookiecategory') || 'nicht-definiert';
-        
-        const origStyle = el.getAttribute('style') || '';
-        const origClass = el.className || '';
-        el.setAttribute('data-orig-style', origStyle);
-        el.setAttribute('data-orig-class', origClass);
-        
-        createPlaceholder(el, src, width, height, altImg, category);
-      } else if (el.tagName === 'DIV') {
-        const altImg = el.getAttribute('data-alt-img');
-        const width = cleanDim(el.getAttribute('data-width') || '100%');
-        const height = cleanDim(el.getAttribute('data-height') || '100%');
-        const src = el.getAttribute('data-src') || '';
-        const category = el.getAttribute('data-cookiecategory') || 'nicht-definiert';
-        createPlaceholder(el, src, width, height, altImg, category);
-      }
-    });
-  }
+    if (el.tagName === 'IFRAME') {
+      const src = el.getAttribute('data-src') || el.src;
+      const width = cleanDim(el.getAttribute('data-width') || el.width || '100%');
+      const height = cleanDim(el.getAttribute('data-height') || el.height || '100%');
+      const altImg = el.getAttribute('alt-img') || el.getAttribute('data-alt-img');
+      const category = el.getAttribute('cookiecategory') || el.getAttribute('data-cookiecategory') || 'nicht-definiert';
+      
+      const origStyle = el.getAttribute('style') || '';
+      const origClass = el.className || '';
+      el.setAttribute('data-orig-style', origStyle);
+      el.setAttribute('data-orig-class', origClass);
+      
+      createPlaceholder(el, src, width, height, altImg, category);
+    } else if (el.tagName === 'DIV') {
+      const altImg = el.getAttribute('data-alt-img');
+      const width = cleanDim(el.getAttribute('data-width') || '100%');
+      const height = cleanDim(el.getAttribute('data-height') || '100%');
+      const src = el.getAttribute('data-src') || '';
+      const category = el.getAttribute('data-cookiecategory') || 'nicht-definiert';
+      createPlaceholder(el, src, width, height, altImg, category);
+    }
+  });
 }
