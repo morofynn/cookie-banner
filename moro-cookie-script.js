@@ -1,6 +1,6 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.4-adaptive-styled (Direkte iFrame-Style-Vererbung)
+   v2.4.4 (Fix: Zentrierung, Höhenstabilität & Helle Textfarbe)
    ------------------------- */
 
 if (document.readyState === 'loading') {
@@ -38,9 +38,15 @@ function initCookieIframes() {
       category = 'nicht-definiert';
     }
 
+    // Originale Styles und Klassen sichern
+    const origStyle = iframe.getAttribute('style') || '';
+    const origClass = iframe.className || '';
+
     iframe.setAttribute('data-src', src);
     iframe.setAttribute('data-width', width);
     iframe.setAttribute('data-height', height);
+    iframe.setAttribute('data-orig-style', origStyle);
+    iframe.setAttribute('data-orig-class', origClass);
     if (altImg) iframe.setAttribute('data-alt-img', altImg);
     iframe.setAttribute('data-cookiecategory', category);
 
@@ -149,9 +155,14 @@ function initCookieIframes() {
               const height = iframe.getAttribute('height') || iframe.style.height || '100%';
               const altImg = iframe.getAttribute('alt-img') || iframe.getAttribute('data-alt-img');
               
+              const origStyle = iframe.getAttribute('style') || '';
+              const origClass = iframe.className || '';
+              
               iframe.setAttribute('data-src', src);
               iframe.setAttribute('data-width', width);
               iframe.setAttribute('data-height', height);
+              iframe.setAttribute('data-orig-style', origStyle);
+              iframe.setAttribute('data-orig-class', origClass);
               if (altImg) iframe.setAttribute('data-alt-img', altImg);
               iframe.setAttribute('data-cookiecategory', category);
               
@@ -287,7 +298,7 @@ function initCookieIframes() {
               <li>Wähle das betroffene iFrame-Element (oder den Embed-Block) aus.</li>
               <li>Gehe rechts in die <strong>Element Settings</strong> (Zahnrad-Symbol, Taste D).</li>
               <li>Scrolle ganz nach unten zu <strong>Custom Attributes</strong>.</li>
-              <li>Klicke auf das <strong>+ Symbol</strong> and füge folgendes Attribut hinzu:
+              <li>Klicke auf das <strong>+ Symbol</strong> und füge folgendes Attribut hinzu:
                 <br>• Name: <code style="background:#eee; padding:1px 4px; border-radius:3px; font-family:monospace; font-weight:bold; color:#000;">cookiecategory</code>
                 <br>• Wert: <code style="background:#eee; padding:1px 4px; border-radius:3px; font-family:monospace; font-weight:bold; color:#000;">targeting</code> <em>(für Analytics/Maps/Marketing)</em> ODER <code style="background:#eee; padding:1px 4px; border-radius:3px; font-family:monospace; font-weight:bold; color:#000;">funktional</code>
               </li>
@@ -437,7 +448,7 @@ function getCategoryLabelText(category) {
 }
 
 /* -------------------------
-   Platzhalter-Erzeugung (Absolut synchron mit dem originalen iFrame-Style)
+   Platzhalter-Erzeugung (v2.4.4 Optimiert)
    ------------------------- */
 function createPlaceholder(el, src, width, height, altImg, category) {
   if (el.classList && el.classList.contains('iframe-placeholder')) return;
@@ -445,10 +456,10 @@ function createPlaceholder(el, src, width, height, altImg, category) {
   const placeholder = document.createElement('div');
   placeholder.className = 'iframe-placeholder';
   if (el.id) placeholder.id = el.id;
-
-  // 🎯 NEU: Sichert den originalen Style und Klassen-String des iFrames direkt im Platzhalter
-  const origStyle = el.getAttribute('style') || '';
-  const origClass = el.className || '';
+  
+  // Cache die originalen Styles
+  const origStyle = el.getAttribute('data-orig-style') || el.getAttribute('style') || '';
+  const origClass = el.getAttribute('data-orig-class') || el.className || '';
   
   placeholder.setAttribute('data-src', src);
   placeholder.setAttribute('data-width', width);
@@ -460,26 +471,41 @@ function createPlaceholder(el, src, width, height, altImg, category) {
 
   let demoText = 'Bitte stimmen Sie der Verwendung von Cookies zu, um den Inhalt zu laden.';
 
-  // 🎯 NEU: Der Platzhalter spiegelt das exakte iFrame-Layout (border-radius, Schatten etc.) und erbt das Schrifttheme der Seite
-  placeholder.style.cssText = origStyle + `;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    box-sizing: border-box;
-    padding: ${altImg ? '0' : '1.5rem'};
-    font-family: inherit;
-    color: inherit;
-    background-color: rgba(128, 128, 128, 0.12);
-    border: 1px dashed rgba(128, 128, 128, 0.25);
-  `;
+  // 🎯 SPIEGELT DIE ORIGINALE GEOMETRIE (Rundungen/Klassen)
+  placeholder.style.cssText = origStyle;
+  
+  // 🎯 ERZWINGT DIE EXAKTE FORM & GRÖSSE (Kein Verziehen)
+  placeholder.style.width = width;
+  placeholder.style.height = height;
+  placeholder.style.display = 'flex';
+  placeholder.style.justifyContent = 'center';
+  placeholder.style.alignItems = 'center';
+  placeholder.style.boxSizing = 'border-box';
+  
+  // 🎯 OPTIMIERT FÜR DUNKLE DESIGNS (Transparente Abdunklung)
+  placeholder.style.backgroundColor = 'rgba(25, 25, 25, 0.75)';
+  placeholder.style.border = '1px dashed rgba(255, 255, 255, 0.15)';
 
   let categoryNotice = '';
   if (category === 'nicht-definiert') {
-    categoryNotice = '<br><span style="font-size: 0.85em; font-weight: bold; color: #d93838;">⚠️ Setup-Fehler: Diesem iFrame wurde in Webflow kein "cookiecategory"-Attribut zugewiesen!</span>';
+    categoryNotice = '<br><span style="font-size: 0.85em; font-weight: bold; color: #ff5252;">⚠️ Setup-Fehler: Diesem iFrame wurde in Webflow kein "cookiecategory"-Attribut zugewiesen!</span>';
   } else {
     const displayLabel = getCategoryLabelText(category);
-    categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; opacity: 0.75;">(Erfordert Kategorie: ${displayLabel})</span>`;
+    categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; color: rgba(255, 255, 255, 0.6);">(Erfordert Kategorie: ${displayLabel})</span>`;
   }
+
+  // 🎯 TEXTCONTAINER MIT ERZWUNGENER WEISSER SCHRIFT & TYPOGRAFIE-ZENTRIERUNG
+  const textWrapper = document.createElement('div');
+  textWrapper.style.cssText = `
+    width: 100%;
+    padding: 1.5rem;
+    box-sizing: border-box;
+    text-align: center;
+    font-family: sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #ffffff; /* Garantiert ultra-lesbar auf dunklem Theme */
+  `;
 
   if (altImg) {
     const img = document.createElement('img');
@@ -487,7 +513,6 @@ function createPlaceholder(el, src, width, height, altImg, category) {
     img.style.cssText = `width:100%; height:100%; object-fit:cover;`;
     placeholder.appendChild(img);
   } else {
-    const textWrapper = document.createElement('div');
     textWrapper.innerHTML = `<div>${demoText}</div>${categoryNotice}`;
     placeholder.appendChild(textWrapper);
   }
@@ -509,7 +534,6 @@ function enableIframes(acceptedCategories = []) {
       if (altImg) iframe.setAttribute('alt-img', altImg);
       iframe.setAttribute('cookiecategory', category);
       
-      // 🎯 NEU: Reaktiviert die originalen CSS-Klassen und Inline-Styles (border-radius) beim Einschalten
       const origStyle = div.getAttribute('data-orig-style');
       const origClass = div.getAttribute('data-orig-class');
       if (origStyle) iframe.setAttribute('style', origStyle);
@@ -529,6 +553,13 @@ function showPlaceholders() {
       const height = el.getAttribute('data-height') || el.height || '100%';
       const altImg = el.getAttribute('alt-img') || el.getAttribute('data-alt-img');
       const category = el.getAttribute('cookiecategory') || el.getAttribute('data-cookiecategory') || 'nicht-definiert';
+      
+      // Sichert Styles ab, bevor in Platzhalter transformiert wird
+      const origStyle = el.getAttribute('style') || '';
+      const origClass = el.className || '';
+      el.setAttribute('data-orig-style', origStyle);
+      el.setAttribute('data-orig-class', origClass);
+      
       createPlaceholder(el, src, width, height, altImg, category);
     } else if (el.tagName === 'DIV') {
       const altImg = el.getAttribute('data-alt-img');
