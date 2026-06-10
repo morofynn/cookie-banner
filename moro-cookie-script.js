@@ -1,6 +1,6 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.4.4 (Fix: Zentrierung, Höhenstabilität & Helle Textfarbe)
+   v2.5.5 (Dynamischer Kontrast-Scanner & Dimensions-Stabilität)
    ------------------------- */
 
 if (document.readyState === 'loading') {
@@ -17,10 +17,12 @@ function initCookieIframes() {
   const consentTime = localStorage.getItem('cookieConsentTime');
   const expirationPeriod = 180 * 24 * 60 * 60 * 1000; 
 
-  if (consentTime && (Date.now() - parseInt(consentTime, 10) > expirationPeriod)) {
-    localStorage.removeItem('cookiesAccepted');
-    localStorage.removeItem('acceptedCategories');
-    localStorage.removeItem('cookieConsentTime');
+  // Hilfsfunktion zur Bereinigung von Webflow-Dimensionen (konvertiert nackte Zahlen in px)
+  function cleanDimension(val) {
+    if (!val) return '100%';
+    val = val.toString().trim();
+    if (/^\d+$/.test(val)) return val + 'px';
+    return val;
   }
 
   // Bestehende statische iFrames durch Platzhalter ersetzen
@@ -29,8 +31,8 @@ function initCookieIframes() {
     
     if (src.startsWith('about:') || src.startsWith('javascript:')) return;
 
-    const width = iframe.getAttribute('width') || iframe.style.width || '100%';
-    const height = iframe.getAttribute('height') || iframe.style.height || '100%';
+    const width = cleanDimension(iframe.getAttribute('width') || iframe.style.width);
+    const height = cleanDimension(iframe.getAttribute('height') || iframe.style.height);
     const altImg = iframe.getAttribute('alt-img');
     
     let category = iframe.getAttribute('cookiecategory') || iframe.getAttribute('data-cookiecategory');
@@ -151,8 +153,8 @@ function initCookieIframes() {
             const currentAccepted = JSON.parse(localStorage.getItem('acceptedCategories') || '[]');
             
             if (category === 'nicht-definiert' || !currentAccepted.includes(category)) {
-              const width = iframe.getAttribute('width') || iframe.style.width || '100%';
-              const height = iframe.getAttribute('height') || iframe.style.height || '100%';
+              const width = cleanDimension(iframe.getAttribute('width') || iframe.style.width);
+              const height = cleanDimension(iframe.getAttribute('height') || iframe.style.height);
               const altImg = iframe.getAttribute('alt-img') || iframe.getAttribute('data-alt-img');
               
               const origStyle = iframe.getAttribute('style') || '';
@@ -448,7 +450,7 @@ function getCategoryLabelText(category) {
 }
 
 /* -------------------------
-   Platzhalter-Erzeugung (v2.4.4 Optimiert)
+   Platzhalter-Erzeugung (v2.5.5 Adaptive Helligkeit & Zentrierungs-Fix)
    ------------------------- */
 function createPlaceholder(el, src, width, height, altImg, category) {
   if (el.classList && el.classList.contains('iframe-placeholder')) return;
@@ -457,7 +459,6 @@ function createPlaceholder(el, src, width, height, altImg, category) {
   placeholder.className = 'iframe-placeholder';
   if (el.id) placeholder.id = el.id;
   
-  // Cache die originalen Styles
   const origStyle = el.getAttribute('data-orig-style') || el.getAttribute('style') || '';
   const origClass = el.getAttribute('data-orig-class') || el.className || '';
   
@@ -471,40 +472,74 @@ function createPlaceholder(el, src, width, height, altImg, category) {
 
   let demoText = 'Bitte stimmen Sie der Verwendung von Cookies zu, um den Inhalt zu laden.';
 
-  // 🎯 SPIEGELT DIE ORIGINALE GEOMETRIE (Rundungen/Klassen)
-  placeholder.style.cssText = origStyle;
-  
-  // 🎯 ERZWINGT DIE EXAKTE FORM & GRÖSSE (Kein Verziehen)
+  // 1. 🎯 ANALYSE DER SEITEN-HELLIGKEIT (Sucht die reale Hintergrundfarbe des Eltern-Elements)
+  let parentBg = 'rgba(255, 255, 255, 1)'; // Fallback weiß
+  let parent = el.parentNode;
+  while (parent) {
+    const computedBg = window.getComputedStyle(parent).backgroundColor;
+    if (computedBg && computedBg !== 'transparent' && computedBg !== 'rgba(0, 0, 0, 0)' && computedBg !== 'rgba(0,0,0,0)') {
+      parentBg = computedBg;
+      break;
+    }
+    parent = parent.parentElement;
+  }
+
+  // Luminanz-Berechnung, um zu wissen, ob die Website hell oder dunkel gemoddet ist
+  let isDarkPage = false;
+  const rgbValues = parentBg.match(/\d+/g);
+  if (rgbValues && rgbValues.length >= 3) {
+    const r = parseInt(rgbValues[0], 10);
+    const g = parseInt(rgbValues[1], 10);
+    const b = parseInt(rgbValues[2], 10);
+    const luminance = (r * 299 + g * 587 + b * 114) / 1000;
+    if (luminance <= 130) isDarkPage = true; // Seite ist dunkel
+  }
+
+  // 2. 🎯 VISUELLE MAßSCHNEIDEREI JE NACH FOREN-THEME
+  placeholder.style.cssText = origStyle; // Übernimmt border-radius des Original-iFrames
   placeholder.style.width = width;
   placeholder.style.height = height;
   placeholder.style.display = 'flex';
   placeholder.style.justifyContent = 'center';
   placeholder.style.alignItems = 'center';
   placeholder.style.boxSizing = 'border-box';
-  
-  // 🎯 OPTIMIERT FÜR DUNKLE DESIGNS (Transparente Abdunklung)
-  placeholder.style.backgroundColor = 'rgba(25, 25, 25, 0.75)';
-  placeholder.style.border = '1px dashed rgba(255, 255, 255, 0.15)';
+
+  let textColor = '#2b2b2b'; // Standard light theme text
+  if (isDarkPage) {
+    // Styling für dunkle Designs (z.B. Kinderoptik Dunkel)
+    placeholder.style.backgroundColor = 'rgba(25, 25, 25, 0.75)';
+    placeholder.style.border = '1px dashed rgba(255, 255, 255, 0.15)';
+    textColor = '#ffffff'; 
+  } else {
+    // Styling für helle Designs
+    placeholder.style.backgroundColor = 'rgba(240, 240, 240, 0.85)';
+    placeholder.style.border = '1px dashed rgba(0, 0, 0, 0.15)';
+    textColor = '#2b2b2b';
+  }
 
   let categoryNotice = '';
   if (category === 'nicht-definiert') {
-    categoryNotice = '<br><span style="font-size: 0.85em; font-weight: bold; color: #ff5252;">⚠️ Setup-Fehler: Diesem iFrame wurde in Webflow kein "cookiecategory"-Attribut zugewiesen!</span>';
+    categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; color: ${isDarkPage ? '#ff6b6b' : '#d93838'};">⚠️ Setup-Fehler: Diesem iFrame wurde in Webflow kein "cookiecategory"-Attribut zugewiesen!</span>`;
   } else {
     const displayLabel = getCategoryLabelText(category);
-    categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; color: rgba(255, 255, 255, 0.6);">(Erfordert Kategorie: ${displayLabel})</span>`;
+    categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; opacity: 0.75;">(Erfordert Kategorie: ${displayLabel})</span>`;
   }
 
-  // 🎯 TEXTCONTAINER MIT ERZWUNGENER WEISSER SCHRIFT & TYPOGRAFIE-ZENTRIERUNG
+  // 3. 🎯 FLEX-WRAPPER FÜR ABSOLUTE, MULTILINE TEXT-ZENTRIERUNG
   const textWrapper = document.createElement('div');
   textWrapper.style.cssText = `
     width: 100%;
     padding: 1.5rem;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     text-align: center;
     font-family: sans-serif;
     font-size: 14px;
     line-height: 1.5;
-    color: #ffffff; /* Garantiert ultra-lesbar auf dunklem Theme */
+    color: ${textColor};
   `;
 
   if (altImg) {
@@ -547,14 +582,21 @@ function enableIframes(acceptedCategories = []) {
 
 function showPlaceholders() {
   document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
+    // Hilfsfunktion zur Bereinigung innerhalb verschachtelter Selektoren
+    function cleanDim(val) {
+      if (!val) return '100%';
+      val = val.toString().trim();
+      if (/^\d+$/.test(val)) return val + 'px';
+      return val;
+    }
+
     if (el.tagName === 'IFRAME') {
       const src = el.getAttribute('data-src') || el.src;
-      const width = el.getAttribute('data-width') || el.width || '100%';
-      const height = el.getAttribute('data-height') || el.height || '100%';
+      const width = cleanDim(el.getAttribute('data-width') || el.width || '100%');
+      const height = cleanDim(el.getAttribute('data-height') || el.height || '100%');
       const altImg = el.getAttribute('alt-img') || el.getAttribute('data-alt-img');
       const category = el.getAttribute('cookiecategory') || el.getAttribute('data-cookiecategory') || 'nicht-definiert';
       
-      // Sichert Styles ab, bevor in Platzhalter transformiert wird
       const origStyle = el.getAttribute('style') || '';
       const origClass = el.className || '';
       el.setAttribute('data-orig-style', origStyle);
@@ -563,8 +605,8 @@ function showPlaceholders() {
       createPlaceholder(el, src, width, height, altImg, category);
     } else if (el.tagName === 'DIV') {
       const altImg = el.getAttribute('data-alt-img');
-      const width = el.getAttribute('data-width') || '100%';
-      const height = el.getAttribute('data-height') || '100%';
+      const width = cleanDim(el.getAttribute('data-width') || '100%');
+      const height = cleanDim(el.getAttribute('data-height') || '100%');
       const src = el.getAttribute('data-src') || '';
       const category = el.getAttribute('data-cookiecategory') || 'nicht-definiert';
       createPlaceholder(el, src, width, height, altImg, category);
