@@ -1,6 +1,6 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.4 (Dynamische Label-Erkennung für Platzhalter & strikte Sperre)
+   v2.4-styled (NUR Style-Erhalt für iFrames integriert)
    ------------------------- */
 
 if (document.readyState === 'loading') {
@@ -38,9 +38,15 @@ function initCookieIframes() {
       category = 'nicht-definiert';
     }
 
+    // 🎯 Originale Webflow-Styles und Klassen vor dem Umbau sichern
+    const origStyle = iframe.getAttribute('style') || '';
+    const origClass = iframe.className || '';
+
     iframe.setAttribute('data-src', src);
     iframe.setAttribute('data-width', width);
     iframe.setAttribute('data-height', height);
+    iframe.setAttribute('data-orig-style', origStyle);
+    iframe.setAttribute('data-orig-class', origClass);
     if (altImg) iframe.setAttribute('data-alt-img', altImg);
     iframe.setAttribute('data-cookiecategory', category);
 
@@ -149,9 +155,15 @@ function initCookieIframes() {
               const height = iframe.getAttribute('height') || iframe.style.height || '100%';
               const altImg = iframe.getAttribute('alt-img') || iframe.getAttribute('data-alt-img');
               
+              // 🎯 Styles auch im MutationObserver für dynamische iFrames sichern
+              const origStyle = iframe.getAttribute('style') || '';
+              const origClass = iframe.className || '';
+              
               iframe.setAttribute('data-src', src);
               iframe.setAttribute('data-width', width);
               iframe.setAttribute('data-height', height);
+              iframe.setAttribute('data-orig-style', origStyle);
+              iframe.setAttribute('data-orig-class', origClass);
               if (altImg) iframe.setAttribute('data-alt-img', altImg);
               iframe.setAttribute('data-cookiecategory', category);
               
@@ -424,7 +436,7 @@ function resetCheckboxes() {
 }
 
 /* -------------------------
-   🆕 HILFSFUNKTION: Extrahiert das benutzerdefinierte Textlabel aus Webflow
+   Label-Erkennung aus Webflow
    ------------------------- */
 function getCategoryLabelText(category) {
   const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
@@ -434,14 +446,13 @@ function getCategoryLabelText(category) {
       return labelEl.innerText.trim();
     }
   }
-  // Fallback-Werte, falls kein spezifisches Label im Webflow Designer vergeben wurde
   if (category === 'targeting') return 'Marketing / Targeting';
   if (category === 'funktional') return 'Funktionale Cookies';
   return category;
 }
 
 /* -------------------------
-   Platzhalter-Erzeugung mit dynamischem Kategorie-Hinweis
+   Platzhalter-Erzeugung
    ------------------------- */
 function createPlaceholder(el, src, width, height, altImg, category) {
   if (el.classList && el.classList.contains('iframe-placeholder')) return;
@@ -449,9 +460,13 @@ function createPlaceholder(el, src, width, height, altImg, category) {
   const placeholder = document.createElement('div');
   placeholder.className = 'iframe-placeholder';
   if (el.id) placeholder.id = el.id;
+  
+  // 🎯 Sichert originale Webflow-Styles & Klassen direkt im Platzhalter-Attribut
   placeholder.setAttribute('data-src', src);
   placeholder.setAttribute('data-width', width);
   placeholder.setAttribute('data-height', height);
+  placeholder.setAttribute('data-orig-style', el.getAttribute('data-orig-style') || el.getAttribute('style') || '');
+  placeholder.setAttribute('data-orig-class', el.getAttribute('data-orig-class') || el.className || '');
   if (altImg) placeholder.setAttribute('data-alt-img', altImg);
   placeholder.setAttribute('data-cookiecategory', category);
 
@@ -482,12 +497,10 @@ function createPlaceholder(el, src, width, height, altImg, category) {
     font-weight: ${computedStyles.fontWeight || '400'}; box-sizing: border-box;
   `;
 
-  // Dynamischen Text je nach Kategorie generieren
   let categoryNotice = '';
   if (category === 'nicht-definiert') {
     categoryNotice = '<br><span style="font-size: 0.85em; font-weight: bold; color: #d93838;">⚠️ Setup-Fehler: Diesem iFrame wurde in Webflow kein "cookiecategory"-Attribut zugewiesen!</span>';
   } else {
-    // 🎯 Zieht sich dynamisch das Label (z.B. "Google Maps" oder "Temin Kalender")
     const displayLabel = getCategoryLabelText(category);
     categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; color: #777;">(Erfordert Kategorie: ${displayLabel})</span>`;
   }
@@ -519,7 +532,14 @@ function enableIframes(acceptedCategories = []) {
       const altImg = div.getAttribute('data-alt-img');
       if (altImg) iframe.setAttribute('alt-img', altImg);
       iframe.setAttribute('cookiecategory', category);
-      iframe.style.border = '0';
+      
+      // 🎯 Überträgt die gesicherten Style-Attribute (border-radius, Schatten etc.) zurück auf das aktive iFrame
+      const origStyle = div.getAttribute('data-orig-style');
+      const origClass = div.getAttribute('data-orig-class');
+      if (origStyle) iframe.setAttribute('style', origStyle);
+      if (origClass) iframe.className = origClass;
+      else iframe.style.border = '0';
+      
       if (div.parentNode) div.parentNode.replaceChild(iframe, div);
     }
   });
