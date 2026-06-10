@@ -1,6 +1,6 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.4-styled (NUR Style-Erhalt für iFrames integriert)
+   v2.4-adaptive-styled (Direkte iFrame-Style-Vererbung)
    ------------------------- */
 
 if (document.readyState === 'loading') {
@@ -38,15 +38,9 @@ function initCookieIframes() {
       category = 'nicht-definiert';
     }
 
-    // 🎯 Originale Webflow-Styles und Klassen vor dem Umbau sichern
-    const origStyle = iframe.getAttribute('style') || '';
-    const origClass = iframe.className || '';
-
     iframe.setAttribute('data-src', src);
     iframe.setAttribute('data-width', width);
     iframe.setAttribute('data-height', height);
-    iframe.setAttribute('data-orig-style', origStyle);
-    iframe.setAttribute('data-orig-class', origClass);
     if (altImg) iframe.setAttribute('data-alt-img', altImg);
     iframe.setAttribute('data-cookiecategory', category);
 
@@ -155,15 +149,9 @@ function initCookieIframes() {
               const height = iframe.getAttribute('height') || iframe.style.height || '100%';
               const altImg = iframe.getAttribute('alt-img') || iframe.getAttribute('data-alt-img');
               
-              // 🎯 Styles auch im MutationObserver für dynamische iFrames sichern
-              const origStyle = iframe.getAttribute('style') || '';
-              const origClass = iframe.className || '';
-              
               iframe.setAttribute('data-src', src);
               iframe.setAttribute('data-width', width);
               iframe.setAttribute('data-height', height);
-              iframe.setAttribute('data-orig-style', origStyle);
-              iframe.setAttribute('data-orig-class', origClass);
               if (altImg) iframe.setAttribute('data-alt-img', altImg);
               iframe.setAttribute('data-cookiecategory', category);
               
@@ -299,7 +287,7 @@ function initCookieIframes() {
               <li>Wähle das betroffene iFrame-Element (oder den Embed-Block) aus.</li>
               <li>Gehe rechts in die <strong>Element Settings</strong> (Zahnrad-Symbol, Taste D).</li>
               <li>Scrolle ganz nach unten zu <strong>Custom Attributes</strong>.</li>
-              <li>Klicke auf das <strong>+ Symbol</strong> und füge folgendes Attribut hinzu:
+              <li>Klicke auf das <strong>+ Symbol</strong> and füge folgendes Attribut hinzu:
                 <br>• Name: <code style="background:#eee; padding:1px 4px; border-radius:3px; font-family:monospace; font-weight:bold; color:#000;">cookiecategory</code>
                 <br>• Wert: <code style="background:#eee; padding:1px 4px; border-radius:3px; font-family:monospace; font-weight:bold; color:#000;">targeting</code> <em>(für Analytics/Maps/Marketing)</em> ODER <code style="background:#eee; padding:1px 4px; border-radius:3px; font-family:monospace; font-weight:bold; color:#000;">funktional</code>
               </li>
@@ -435,9 +423,6 @@ function resetCheckboxes() {
   });
 }
 
-/* -------------------------
-   Label-Erkennung aus Webflow
-   ------------------------- */
 function getCategoryLabelText(category) {
   const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
   if (wrapper) {
@@ -452,7 +437,7 @@ function getCategoryLabelText(category) {
 }
 
 /* -------------------------
-   Platzhalter-Erzeugung
+   Platzhalter-Erzeugung (Absolut synchron mit dem originalen iFrame-Style)
    ------------------------- */
 function createPlaceholder(el, src, width, height, altImg, category) {
   if (el.classList && el.classList.contains('iframe-placeholder')) return;
@@ -460,41 +445,32 @@ function createPlaceholder(el, src, width, height, altImg, category) {
   const placeholder = document.createElement('div');
   placeholder.className = 'iframe-placeholder';
   if (el.id) placeholder.id = el.id;
+
+  // 🎯 NEU: Sichert den originalen Style und Klassen-String des iFrames direkt im Platzhalter
+  const origStyle = el.getAttribute('style') || '';
+  const origClass = el.className || '';
   
-  // 🎯 Sichert originale Webflow-Styles & Klassen direkt im Platzhalter-Attribut
   placeholder.setAttribute('data-src', src);
   placeholder.setAttribute('data-width', width);
   placeholder.setAttribute('data-height', height);
-  placeholder.setAttribute('data-orig-style', el.getAttribute('data-orig-style') || el.getAttribute('style') || '');
-  placeholder.setAttribute('data-orig-class', el.getAttribute('data-orig-class') || el.className || '');
+  placeholder.setAttribute('data-orig-style', origStyle);
+  placeholder.setAttribute('data-orig-class', origClass);
   if (altImg) placeholder.setAttribute('data-alt-img', altImg);
   placeholder.setAttribute('data-cookiecategory', category);
 
-  const demoEl = document.querySelector('.iframe-placeholder-demo');
-  let computedStyles = {};
   let demoText = 'Bitte stimmen Sie der Verwendung von Cookies zu, um den Inhalt zu laden.';
-  if (demoEl) {
-    const styles = window.getComputedStyle(demoEl);
-    computedStyles = {
-      textAlign: styles.textAlign,
-      backgroundColor: styles.backgroundColor,
-      fontFamily: styles.fontFamily,
-      color: styles.color,
-      fontSize: styles.fontSize,
-      lineHeight: styles.lineHeight,
-      fontWeight: styles.fontWeight,
-    };
-    demoText = demoEl.innerText || demoText;
-  }
 
-  placeholder.style.cssText = `
-    z-index: auto; display:flex; justify-content:center; align-items:center;
-    padding: ${altImg ? '0' : '1.5rem'}; width:${width}; height:${height};
-    overflow:hidden; position:relative; text-align: ${computedStyles.textAlign || 'center'};
-    background-color: ${computedStyles.backgroundColor || '#f6f6f6'};
-    font-family: ${computedStyles.fontFamily || 'sans-serif'}; color: ${computedStyles.color || '#333'};
-    font-size: ${computedStyles.fontSize || '1rem'}; line-height: ${computedStyles.lineHeight || '1.4'};
-    font-weight: ${computedStyles.fontWeight || '400'}; box-sizing: border-box;
+  // 🎯 NEU: Der Platzhalter spiegelt das exakte iFrame-Layout (border-radius, Schatten etc.) und erbt das Schrifttheme der Seite
+  placeholder.style.cssText = origStyle + `;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    padding: ${altImg ? '0' : '1.5rem'};
+    font-family: inherit;
+    color: inherit;
+    background-color: rgba(128, 128, 128, 0.12);
+    border: 1px dashed rgba(128, 128, 128, 0.25);
   `;
 
   let categoryNotice = '';
@@ -502,7 +478,7 @@ function createPlaceholder(el, src, width, height, altImg, category) {
     categoryNotice = '<br><span style="font-size: 0.85em; font-weight: bold; color: #d93838;">⚠️ Setup-Fehler: Diesem iFrame wurde in Webflow kein "cookiecategory"-Attribut zugewiesen!</span>';
   } else {
     const displayLabel = getCategoryLabelText(category);
-    categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; color: #777;">(Erfordert Kategorie: ${displayLabel})</span>`;
+    categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; opacity: 0.75;">(Erfordert Kategorie: ${displayLabel})</span>`;
   }
 
   if (altImg) {
@@ -533,7 +509,7 @@ function enableIframes(acceptedCategories = []) {
       if (altImg) iframe.setAttribute('alt-img', altImg);
       iframe.setAttribute('cookiecategory', category);
       
-      // 🎯 Überträgt die gesicherten Style-Attribute (border-radius, Schatten etc.) zurück auf das aktive iFrame
+      // 🎯 NEU: Reaktiviert die originalen CSS-Klassen und Inline-Styles (border-radius) beim Einschalten
       const origStyle = div.getAttribute('data-orig-style');
       const origClass = div.getAttribute('data-orig-class');
       if (origStyle) iframe.setAttribute('style', origStyle);
