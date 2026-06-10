@@ -1,6 +1,6 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.4 (Dynamische Label-Erkennung für Platzhalter & strikte Sperre)
+   v2.4-fixed (Style-Erhalt bei iFrames & optimierter Consent Mode)
    ------------------------- */
 
 if (document.readyState === 'loading') {
@@ -38,9 +38,15 @@ function initCookieIframes() {
       category = 'nicht-definiert';
     }
 
+    // 🎯 NEU: Originale Styles und Klassen vor dem Löschen sichern
+    const origStyle = iframe.getAttribute('style') || '';
+    const origClass = iframe.className || '';
+
     iframe.setAttribute('data-src', src);
     iframe.setAttribute('data-width', width);
     iframe.setAttribute('data-height', height);
+    iframe.setAttribute('data-orig-style', origStyle);
+    iframe.setAttribute('data-orig-class', origClass);
     if (altImg) iframe.setAttribute('data-alt-img', altImg);
     iframe.setAttribute('data-cookiecategory', category);
 
@@ -107,11 +113,14 @@ function initCookieIframes() {
 
   function updateGTMConsent(categories) {
     window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
+    
+    // 🎯 FIX: Nutzt die native globale gtag-Schnittstelle statt lokaler Überschreibung
+    const gMode = window.gtag || function() { window.dataLayer.push(arguments); };
+    
     const hasTargeting = categories.includes('targeting');
     const hasFunktional = categories.includes('funktional');
 
-    gtag('consent', 'update', {
+    gMode('consent', 'update', {
       'analytics_storage': hasTargeting ? 'granted' : 'denied',
       'ad_storage': hasTargeting ? 'granted' : 'denied',
       'ad_user_data': hasTargeting ? 'granted' : 'denied',
@@ -149,9 +158,15 @@ function initCookieIframes() {
               const height = iframe.getAttribute('height') || iframe.style.height || '100%';
               const altImg = iframe.getAttribute('alt-img') || iframe.getAttribute('data-alt-img');
               
+              // 🎯 NEU: Styles auch im MutationObserver für dynamische iFrames sichern
+              const origStyle = iframe.getAttribute('style') || '';
+              const origClass = iframe.className || '';
+              
               iframe.setAttribute('data-src', src);
               iframe.setAttribute('data-width', width);
               iframe.setAttribute('data-height', height);
+              iframe.setAttribute('data-orig-style', origStyle);
+              iframe.setAttribute('data-orig-class', origClass);
               if (altImg) iframe.setAttribute('data-alt-img', altImg);
               iframe.setAttribute('data-cookiecategory', category);
               
@@ -326,221 +341,132 @@ function initCookieIframes() {
   }
 
   /* -------------------------
-     UI- & Helfer-Logik
+     Label-Erkennung aus Webflow
      ------------------------- */
-  function updateAcceptButtonState() {
-    if (!acceptBtn) return;
-    const accepted = getAcceptedCategories();
-    acceptBtn.removeEventListener('click', interceptClick, true);
-    acceptBtn.removeEventListener('touchstart', interceptClick, true);
-    if (accepted.length === 0) {
-      acceptBtn.addEventListener('click', interceptClick, true);
-      acceptBtn.addEventListener('touchstart', interceptClick, true);
-      acceptBtn.style.cursor = 'not-allowed';
-    } else {
-      acceptBtn.style.cursor = 'pointer';
-    }
-  }
-
-  function interceptClick(e) {
-    if (e) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      wiggleOnce(e.currentTarget);
-    }
-  }
-
-  function wiggleOnce(btn) {
-    let i = 0;
-    const angles = [0, -10, 10, -8, 8, -5, 5, 0];
-    const interval = 30;
-    const wiggleInterval = setInterval(() => {
-      btn.style.transform = `rotate(${angles[i]}deg)`;
-      i++;
-      if (i >= angles.length) {
-        clearInterval(wiggleInterval);
-        btn.style.transform = 'none';
-      }
-    }, interval);
-  }
-}
-
-function setVisualPrechecked() {
-  ['funktional','targeting'].forEach(category => {
+  function getCategoryLabelText(category) {
     const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
     if (wrapper) {
-      const visual = wrapper.querySelector('.w-checkbox-input');
-      if (visual) visual.classList.add('w--redirected-checked');
-      const input = wrapper.querySelector('input[type="checkbox"]');
-      if (input) input.checked = true;
-    }
-  });
-}
-
-function precheckedToChecked() {
-  ['funktional','targeting'].forEach(category => {
-    const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
-    if (wrapper) {
-      const visual = wrapper.querySelector('.w-checkbox-input');
-      const input = wrapper.querySelector('input[type="checkbox"]');
-      if (visual && visual.classList.contains('w--redirected-checked') && input) {
-        input.checked = true;
+      const labelEl = wrapper.querySelector('.opt-in-label, .w-form-label');
+      if (labelEl && labelEl.innerText && labelEl.innerText.trim() !== '') {
+        return labelEl.innerText.trim();
       }
     }
-  });
-}
-
-function getAcceptedCategories() {
-  const categories = [];
-  ['funktional','targeting'].forEach(category => {
-    const input = document.querySelector('.opt-in-wrapper.is-' + category + ' input[type="checkbox"]');
-    if (input?.checked) categories.push(category);
-  });
-  return categories;
-}
-
-function setCheckboxes(categories) {
-  ['funktional','targeting'].forEach(category => {
-    const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
-    const input = wrapper?.querySelector('input[type="checkbox"]');
-    const visual = wrapper?.querySelector('.w-checkbox-input');
-    if (!wrapper || !input || !visual) return;
-    const checked = categories.includes(category);
-    input.checked = checked;
-    if (checked) visual.classList.add('w--redirected-checked');
-    else visual.classList.remove('w--redirected-checked');
-  });
-}
-
-function resetCheckboxes() {
-  ['funktional','targeting'].forEach(category => {
-    const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
-    if (!wrapper) return;
-    const input = wrapper.querySelector('input[type="checkbox"]');
-    const visual = wrapper.querySelector('.w-checkbox-input');
-    if (input) input.checked = false;
-    if (visual) visual.classList.remove('w--redirected-checked');
-  });
-}
-
-/* -------------------------
-   🆕 HILFSFUNKTION: Extrahiert das benutzerdefinierte Textlabel aus Webflow
-   ------------------------- */
-function getCategoryLabelText(category) {
-  const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
-  if (wrapper) {
-    const labelEl = wrapper.querySelector('.opt-in-label, .w-form-label');
-    if (labelEl && labelEl.innerText && labelEl.innerText.trim() !== '') {
-      return labelEl.innerText.trim();
-    }
-  }
-  // Fallback-Werte, falls kein spezifisches Label im Webflow Designer vergeben wurde
-  if (category === 'targeting') return 'Marketing / Targeting';
-  if (category === 'funktional') return 'Funktionale Cookies';
-  return category;
-}
-
-/* -------------------------
-   Platzhalter-Erzeugung mit dynamischem Kategorie-Hinweis
-   ------------------------- */
-function createPlaceholder(el, src, width, height, altImg, category) {
-  if (el.classList && el.classList.contains('iframe-placeholder')) return;
-  
-  const placeholder = document.createElement('div');
-  placeholder.className = 'iframe-placeholder';
-  if (el.id) placeholder.id = el.id;
-  placeholder.setAttribute('data-src', src);
-  placeholder.setAttribute('data-width', width);
-  placeholder.setAttribute('data-height', height);
-  if (altImg) placeholder.setAttribute('data-alt-img', altImg);
-  placeholder.setAttribute('data-cookiecategory', category);
-
-  const demoEl = document.querySelector('.iframe-placeholder-demo');
-  let computedStyles = {};
-  let demoText = 'Bitte stimmen Sie der Verwendung von Cookies zu, um den Inhalt zu laden.';
-  if (demoEl) {
-    const styles = window.getComputedStyle(demoEl);
-    computedStyles = {
-      textAlign: styles.textAlign,
-      backgroundColor: styles.backgroundColor,
-      fontFamily: styles.fontFamily,
-      color: styles.color,
-      fontSize: styles.fontSize,
-      lineHeight: styles.lineHeight,
-      fontWeight: styles.fontWeight,
-    };
-    demoText = demoEl.innerText || demoText;
+    if (category === 'targeting') return 'Marketing / Targeting';
+    if (category === 'funktional') return 'Funktionale Cookies';
+    return category;
   }
 
-  placeholder.style.cssText = `
-    z-index: auto; display:flex; justify-content:center; align-items:center;
-    padding: ${altImg ? '0' : '1.5rem'}; width:${width}; height:${height};
-    overflow:hidden; position:relative; text-align: ${computedStyles.textAlign || 'center'};
-    background-color: ${computedStyles.backgroundColor || '#f6f6f6'};
-    font-family: ${computedStyles.fontFamily || 'sans-serif'}; color: ${computedStyles.color || '#333'};
-    font-size: ${computedStyles.fontSize || '1rem'}; line-height: ${computedStyles.lineHeight || '1.4'};
-    font-weight: ${computedStyles.fontWeight || '400'}; box-sizing: border-box;
-  `;
-
-  // Dynamischen Text je nach Kategorie generieren
-  let categoryNotice = '';
-  if (category === 'nicht-definiert') {
-    categoryNotice = '<br><span style="font-size: 0.85em; font-weight: bold; color: #d93838;">⚠️ Setup-Fehler: Diesem iFrame wurde in Webflow kein "cookiecategory"-Attribut zugewiesen!</span>';
-  } else {
-    // 🎯 Zieht sich dynamisch das Label (z.B. "Google Maps" oder "Temin Kalender")
-    const displayLabel = getCategoryLabelText(category);
-    categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; color: #777;">(Erfordert Kategorie: ${displayLabel})</span>`;
-  }
-
-  if (altImg) {
-    const img = document.createElement('img');
-    img.src = altImg; img.alt = demoText;
-    img.style.cssText = `width:100%; height:100%; object-fit:cover;`;
-    placeholder.appendChild(img);
-  } else {
-    const textWrapper = document.createElement('div');
-    textWrapper.innerHTML = `<div>${demoText}</div>${categoryNotice}`;
-    placeholder.appendChild(textWrapper);
-  }
-  
-  if (el.parentNode) el.parentNode.replaceChild(placeholder, el);
-}
-
-function enableIframes(acceptedCategories = []) {
-  document.querySelectorAll('.iframe-placeholder').forEach(function(div) {
-    const category = div.getAttribute('data-cookiecategory');
+  /* -------------------------
+     Platzhalter-Erzeugung
+     ------------------------- */
+  function createPlaceholder(el, src, width, height, altImg, category) {
+    if (el.classList && el.classList.contains('iframe-placeholder')) return;
     
-    if (category && category !== 'nicht-definiert' && acceptedCategories.includes(category)) {
-      const iframe = document.createElement('iframe');
-      if (div.id) iframe.id = div.id;
-      iframe.src = div.getAttribute('data-src');
-      iframe.setAttribute('width', div.getAttribute('data-width'));
-      iframe.setAttribute('height', div.getAttribute('data-height'));
-      const altImg = div.getAttribute('data-alt-img');
-      if (altImg) iframe.setAttribute('alt-img', altImg);
-      iframe.setAttribute('cookiecategory', category);
-      iframe.style.border = '0';
-      if (div.parentNode) div.parentNode.replaceChild(iframe, div);
-    }
-  });
-}
+    const placeholder = document.createElement('div');
+    placeholder.className = 'iframe-placeholder';
+    if (el.id) placeholder.id = el.id;
+    
+    // 🎯 Styles und Klassen im Platzhalter für die spätere Reaktivierung zwischenspeichern
+    placeholder.setAttribute('data-src', src);
+    placeholder.setAttribute('data-width', width);
+    placeholder.setAttribute('data-height', height);
+    placeholder.setAttribute('data-orig-style', el.getAttribute('data-orig-style') || el.getAttribute('style') || '');
+    placeholder.setAttribute('data-orig-class', el.getAttribute('data-orig-class') || el.className || '');
+    if (altImg) placeholder.setAttribute('data-alt-img', altImg);
+    placeholder.setAttribute('data-cookiecategory', category);
 
-function showPlaceholders() {
-  document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
-    if (el.tagName === 'IFRAME') {
-      const src = el.getAttribute('data-src') || el.src;
-      const width = el.getAttribute('data-width') || el.width || '100%';
-      const height = el.getAttribute('data-height') || el.height || '100%';
-      const altImg = el.getAttribute('alt-img') || el.getAttribute('data-alt-img');
-      const category = el.getAttribute('cookiecategory') || el.getAttribute('data-cookiecategory') || 'nicht-definiert';
-      createPlaceholder(el, src, width, height, altImg, category);
-    } else if (el.tagName === 'DIV') {
-      const altImg = el.getAttribute('data-alt-img');
-      const width = el.getAttribute('data-width') || '100%';
-      const height = el.getAttribute('data-height') || '100%';
-      const src = el.getAttribute('data-src') || '';
-      const category = el.getAttribute('data-cookiecategory') || 'nicht-definiert';
-      createPlaceholder(el, src, width, height, altImg, category);
+    const demoEl = document.querySelector('.iframe-placeholder-demo');
+    let computedStyles = {};
+    let demoText = 'Bitte stimmen Sie der Verwendung von Cookies zu, um den Inhalt zu laden.';
+    if (demoEl) {
+      const styles = window.getComputedStyle(demoEl);
+      computedStyles = {
+        textAlign: styles.textAlign,
+        backgroundColor: styles.backgroundColor,
+        fontFamily: styles.fontFamily,
+        color: styles.color,
+        fontSize: styles.fontSize,
+        lineHeight: styles.lineHeight,
+        fontWeight: styles.fontWeight,
+      };
+      demoText = demoEl.innerText || demoText;
     }
-  });
+
+    placeholder.style.cssText = `
+      z-index: auto; display:flex; justify-content:center; align-items:center;
+      padding: ${altImg ? '0' : '1.5rem'}; width:${width}; height:${height};
+      overflow:hidden; position:relative; text-align: ${computedStyles.textAlign || 'center'};
+      background-color: ${computedStyles.backgroundColor || '#f6f6f6'};
+      font-family: ${computedStyles.fontFamily || 'sans-serif'}; color: ${computedStyles.color || '#333'};
+      font-size: ${computedStyles.fontSize || '1rem'}; line-height: ${computedStyles.lineHeight || '1.4'};
+      font-weight: ${computedStyles.fontWeight || '400'}; box-sizing: border-box;
+    `;
+
+    let categoryNotice = '';
+    if (category === 'nicht-definiert') {
+      categoryNotice = '<br><span style="font-size: 0.85em; font-weight: bold; color: #d93838;">⚠️ Setup-Fehler: Diesem iFrame wurde in Webflow kein "cookiecategory"-Attribut zugewiesen!</span>';
+    } else {
+      const displayLabel = getCategoryLabelText(category);
+      categoryNotice = `<br><span style="font-size: 0.85em; font-weight: bold; color: #777;">(Erfordert Kategorie: ${displayLabel})</span>`;
+    }
+
+    if (altImg) {
+      const img = document.createElement('img');
+      img.src = altImg; img.alt = demoText;
+      img.style.cssText = `width:100%; height:100%; object-fit:cover;`;
+      placeholder.appendChild(img);
+    } else {
+      const textWrapper = document.createElement('div');
+      textWrapper.innerHTML = `<div>${demoText}</div>${categoryNotice}`;
+      placeholder.appendChild(textWrapper);
+    }
+    
+    if (el.parentNode) el.parentNode.replaceChild(placeholder, el);
+  }
+
+  function enableIframes(acceptedCategories = []) {
+    document.querySelectorAll('.iframe-placeholder').forEach(function(div) {
+      const category = div.getAttribute('data-cookiecategory');
+      
+      if (category && category !== 'nicht-definiert' && acceptedCategories.includes(category)) {
+        const iframe = document.createElement('iframe');
+        if (div.id) iframe.id = div.id;
+        iframe.src = div.getAttribute('data-src');
+        iframe.setAttribute('width', div.getAttribute('data-width'));
+        iframe.setAttribute('height', div.getAttribute('data-height'));
+        const altImg = div.getAttribute('data-alt-img');
+        if (altImg) iframe.setAttribute('alt-img', altImg);
+        iframe.setAttribute('cookiecategory', category);
+        
+        // 🎯 NEU: Wiederherstellung der ursprünglichen CSS-Klassen und Styles (wie border-radius)
+        const origStyle = div.getAttribute('data-orig-style');
+        const origClass = div.getAttribute('data-orig-class');
+        if (origStyle) iframe.setAttribute('style', origStyle);
+        if (origClass) iframe.className = origClass;
+        else iframe.style.border = '0';
+        
+        if (div.parentNode) div.parentNode.replaceChild(iframe, div);
+      }
+    });
+  }
+
+  function showPlaceholders() {
+    document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
+      if (el.tagName === 'IFRAME') {
+        const src = el.getAttribute('data-src') || el.src;
+        const width = el.getAttribute('data-width') || el.width || '100%';
+        const height = el.getAttribute('data-height') || el.height || '100%';
+        const altImg = el.getAttribute('alt-img') || el.getAttribute('data-alt-img');
+        const category = el.getAttribute('cookiecategory') || el.getAttribute('data-cookiecategory') || 'nicht-definiert';
+        createPlaceholder(el, src, width, height, altImg, category);
+      } else if (el.tagName === 'DIV') {
+        const altImg = el.getAttribute('data-alt-img');
+        const width = el.getAttribute('data-width') || '100%';
+        const height = el.getAttribute('data-height') || '100%';
+        const src = el.getAttribute('data-src') || '';
+        const category = el.getAttribute('data-cookiecategory') || 'nicht-definiert';
+        createPlaceholder(el, src, width, height, altImg, category);
+      }
+    });
+  }
 }
