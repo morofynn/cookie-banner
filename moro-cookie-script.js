@@ -1,6 +1,6 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.5.7 (v2.5.6 Basis + Scroll-Block Feature)
+   v2.5.7 (Deep-Glow Edition + Scroll-Block Feature)
    ------------------------- */
 
 if (document.readyState === 'loading') {
@@ -17,26 +17,12 @@ function initCookieIframes() {
   const consentTime = localStorage.getItem('cookieConsentTime');
   const expirationPeriod = 180 * 24 * 60 * 60 * 1000; 
 
-  // Hilfsfunktion zur Bereinigung von Webflow-Dimensionen (konvertiert nackte Zahlen in px)
+  // Hilfsfunktion zur Bereinigung von Webflow-Dimensionen
   function cleanDimension(val) {
-    if (!val) return '100%';
+    if (!val || val === 'auto') return '100%'; // FIX: Verhindert den <svg> "auto" Fehler
     val = val.toString().trim();
     if (/^\d+$/.test(val)) return val + 'px';
     return val;
-  }
-
-  // 🎯 NEU: Hilfsfunktion für den Scroll-Block (Desktop & Mobile)
-  function toggleScrollBlock(shouldBlock) {
-    const cookieBanner = document.querySelector('.cookies');
-    if (!cookieBanner || cookieBanner.getAttribute('block-scroll') !== 'true') return;
-
-    if (shouldBlock) {
-      document.documentElement.style.setProperty('overflow', 'hidden', 'important');
-      document.body.style.setProperty('overflow', 'hidden', 'important');
-    } else {
-      document.documentElement.style.removeProperty('overflow');
-      document.body.style.removeProperty('overflow');
-    }
   }
 
   // Bestehende statische iFrames durch Platzhalter ersetzen
@@ -85,7 +71,7 @@ function initCookieIframes() {
     showPlaceholders();
     setVisualPrechecked();
 
-    // 🎯 NEU: Scrollen blockieren, da noch keine Entscheidung vorliegt
+    // 🎯 NEU: Scrollen sperren, da noch keine Entscheidung getroffen wurde
     toggleScrollBlock(true);
 
     const cookieIcon = document.querySelector('#cookie-icon');
@@ -109,7 +95,7 @@ function initCookieIframes() {
       updateGTMConsent(accepted); 
       updateAcceptButtonState();
 
-      // 🎯 NEU: Scrollen nach Akzeptieren wieder freigeben
+      // 🎯 NEU: Scroll-Sperre aufheben
       toggleScrollBlock(false);
     });
   }
@@ -124,7 +110,7 @@ function initCookieIframes() {
       updateGTMConsent([]); 
       updateAcceptButtonState();
 
-      // 🎯 NEU: Scrollen nach Ablehnen wieder freigeben
+      // 🎯 NEU: Scroll-Sperre aufheben
       toggleScrollBlock(false);
     });
   }
@@ -473,6 +459,20 @@ function getCategoryLabelText(category) {
   return category;
 }
 
+// 🎯 NEU: Scroll-Block Hilfsfunktion
+function toggleScrollBlock(shouldBlock) {
+  const cookieBanner = document.querySelector('.cookies');
+  if (!cookieBanner || cookieBanner.getAttribute('block-scroll') !== 'true') return;
+
+  if (shouldBlock) {
+    document.documentElement.style.setProperty('overflow', 'hidden', 'important');
+    document.body.style.setProperty('overflow', 'hidden', 'important');
+  } else {
+    document.documentElement.style.removeProperty('overflow');
+    document.body.style.removeProperty('overflow');
+  }
+}
+
 /* -------------------------
    Platzhalter-Erzeugung (v2.5.5-based mit Deep-Glow Rahmen)
    ------------------------- */
@@ -609,7 +609,7 @@ function enableIframes(acceptedCategories = []) {
 function showPlaceholders() {
   document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
     function cleanDim(val) {
-      if (!val) return '100%';
+      if (!val || val === 'auto') return '100%'; // FIX: Verhindert den <svg> "auto" Fehler
       val = val.toString().trim();
       if (/^\d+$/.test(val)) return val + 'px';
       return val;
