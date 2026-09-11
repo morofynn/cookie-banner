@@ -1,7 +1,9 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.5.7 (Deep-Glow Edition + Scroll-Block Feature)
+   v2.5.8 (Consent revocation + deferred iframe loading)
    ------------------------- */
+
+const moroFrameTemplates = new WeakMap();
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initCookieIframes);
@@ -14,66 +16,40 @@ function initCookieIframes() {
   // 🔍 START UNIVERSAL-DIAGNOSE (Scannt GTM & iFrames)
   runMoroDiagnostics();
 
-  const consentTime = localStorage.getItem('cookieConsentTime');
-  const expirationPeriod = 180 * 24 * 60 * 60 * 1000; 
-
-  // Hilfsfunktion zur Bereinigung von Webflow-Dimensionen
-  function cleanDimension(val) {
-    if (!val || val === 'auto') return '100%'; // FIX: Verhindert den <svg> "auto" Fehler
-    val = val.toString().trim();
-    if (/^\d+$/.test(val)) return val + 'px';
-    return val;
+  // Keep the current choice in memory, even when browser storage is unavailable.
+  let consent = null;
+  let acceptedCategories = [];
+  try {
+    consent = localStorage.getItem('cookiesAccepted');
+    const stored = JSON.parse(localStorage.getItem('acceptedCategories') || '[]');
+    if (consent === 'true' && Array.isArray(stored)) {
+      acceptedCategories = stored.filter(category => ['funktional', 'targeting'].includes(category));
+    }
+  } catch (error) {
+    consent = null;
   }
 
-  // Bestehende statische iFrames durch Platzhalter ersetzen
-  document.querySelectorAll('iframe[src]').forEach(function(iframe) {
-    const src = iframe.src;
-    
-    if (src.startsWith('about:') || src.startsWith('javascript:')) return;
-
-    const width = cleanDimension(iframe.getAttribute('width') || iframe.style.width);
-    const height = cleanDimension(iframe.getAttribute('height') || iframe.style.height);
-    const altImg = iframe.getAttribute('alt-img');
-    
-    let category = iframe.getAttribute('cookiecategory') || iframe.getAttribute('data-cookiecategory');
-    if (!category) {
-      category = 'nicht-definiert';
+  function saveConsent(categories) {
+    acceptedCategories = categories;
+    try {
+      localStorage.setItem('cookiesAccepted', categories.length ? 'true' : 'false');
+      localStorage.setItem('acceptedCategories', JSON.stringify(categories));
+      localStorage.setItem('cookieConsentTime', Date.now().toString());
+    } catch (error) {
+      // Consent still applies for this page when storage is blocked.
     }
+    updateGTMConsent(categories);
+    syncIframes(categories);
+    updateAcceptButtonState();
+    toggleScrollBlock(false);
+  }
 
-    // Originale Styles und Klassen sichern
-    const origStyle = iframe.getAttribute('style') || '';
-    const origClass = iframe.className || '';
-
-    iframe.setAttribute('data-src', src);
-    iframe.setAttribute('data-width', width);
-    iframe.setAttribute('data-height', height);
-    iframe.setAttribute('data-orig-style', origStyle);
-    iframe.setAttribute('data-orig-class', origClass);
-    if (altImg) iframe.setAttribute('data-alt-img', altImg);
-    iframe.setAttribute('data-cookiecategory', category);
-
-    iframe.removeAttribute('src');
-    createPlaceholder(iframe, src, width, height, altImg, category);
-  });
-
-  const consent = localStorage.getItem('cookiesAccepted');
-  const acceptedCategories = JSON.parse(localStorage.getItem('acceptedCategories') || '[]');
-
-  if (consent === 'true') {
-    setCheckboxes(acceptedCategories);
-    enableIframes(acceptedCategories);
-    updateGTMConsent(acceptedCategories); 
-  } else if (consent === 'false') {
+  setCheckboxes(acceptedCategories);
+  syncIframes(acceptedCategories);
+  updateGTMConsent(acceptedCategories);
+  if (consent !== 'true' && consent !== 'false') {
     resetCheckboxes();
-    showPlaceholders();
-    updateGTMConsent([]); 
-  } else {
-    showPlaceholders();
-    setVisualPrechecked();
-
-    // 🎯 NEU: Scrollen sperren, da noch keine Entscheidung getroffen wurde
     toggleScrollBlock(true);
-
     const cookieIcon = document.querySelector('#cookie-icon');
     if (cookieIcon) cookieIcon.click();
   }
@@ -83,35 +59,14 @@ function initCookieIframes() {
 
   if (acceptBtn) {
     acceptBtn.addEventListener('click', function() {
-      const accepted = getAcceptedCategories();
-      if (accepted.length === 0) {
-        interceptClick(); 
-        return;
-      }
-      localStorage.setItem('cookiesAccepted', 'true');
-      localStorage.setItem('acceptedCategories', JSON.stringify(accepted));
-      localStorage.setItem('cookieConsentTime', Date.now().toString()); 
-      enableIframes(accepted);
-      updateGTMConsent(accepted); 
-      updateAcceptButtonState();
-
-      // 🎯 NEU: Scroll-Sperre aufheben
-      toggleScrollBlock(false);
+      saveConsent(getAcceptedCategories());
     });
   }
 
   if (declineBtn) {
     declineBtn.addEventListener('click', function() {
-      localStorage.setItem('cookiesAccepted', 'false');
-      localStorage.setItem('acceptedCategories', '[]');
-      localStorage.setItem('cookieConsentTime', Date.now().toString()); 
       resetCheckboxes();
-      showPlaceholders();
-      updateGTMConsent([]); 
-      updateAcceptButtonState();
-
-      // 🎯 NEU: Scroll-Sperre aufheben
-      toggleScrollBlock(false);
+      saveConsent([]);
     });
   }
 
@@ -145,48 +100,20 @@ function initCookieIframes() {
   }
 
   const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      mutation.addedNodes.forEach((node) => {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          const targetIframes = node.tagName === 'IFRAME' ? [node] : node.querySelectorAll('iframe[src]');
-          targetIframes.forEach((iframe) => {
-            let category = iframe.getAttribute('cookiecategory') || iframe.getAttribute('data-cookiecategory');
-            const src = iframe.src || iframe.getAttribute('data-src');
-            
-            if (src && (src.startsWith('about:') || src.startsWith('javascript:'))) return;
-
-            if (!category) {
-              category = 'nicht-definiert';
-            }
-
-            const currentAccepted = JSON.parse(localStorage.getItem('acceptedCategories') || '[]');
-            
-            if (category === 'nicht-definiert' || !currentAccepted.includes(category)) {
-              const width = cleanDimension(iframe.getAttribute('width') || iframe.style.width);
-              const height = cleanDimension(iframe.getAttribute('height') || iframe.style.height);
-              const altImg = iframe.getAttribute('alt-img') || iframe.getAttribute('data-alt-img');
-              
-              const origStyle = iframe.getAttribute('style') || '';
-              const origClass = iframe.className || '';
-              
-              iframe.setAttribute('data-src', src);
-              iframe.setAttribute('data-width', width);
-              iframe.setAttribute('data-height', height);
-              iframe.setAttribute('data-orig-style', origStyle);
-              iframe.setAttribute('data-orig-class', origClass);
-              if (altImg) iframe.setAttribute('data-alt-img', altImg);
-              iframe.setAttribute('data-cookiecategory', category);
-              
-              iframe.removeAttribute('src');
-              createPlaceholder(iframe, src, width, height, altImg, category);
-            }
-          });
-        }
-      });
-    });
+    // Observe only frame changes, not our own placeholder content.
+    const framesChanged = mutations.some(mutation =>
+      mutation.type === 'attributes' ||
+      Array.from(mutation.addedNodes).some(node =>
+        node.nodeType === Node.ELEMENT_NODE &&
+        (node.tagName === 'IFRAME' || node.querySelector('iframe'))
+      )
+    );
+    if (framesChanged) syncIframes(acceptedCategories);
   });
-
-  observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(document.body, {
+    childList: true, subtree: true, attributes: true,
+    attributeFilter: ['src', 'data-src', 'cookiecategory', 'data-cookiecategory']
+  });
 
   /* -------------------------
      🚨 DIAGNOSE & WARN-POPUP LOGIK
@@ -221,7 +148,7 @@ function initCookieIframes() {
     const unsafeIframes = [];
     document.querySelectorAll('iframe').forEach(iframe => {
       const category = iframe.getAttribute('cookiecategory') || iframe.getAttribute('data-cookiecategory');
-      const src = iframe.src || iframe.getAttribute('data-src') || iframe.getAttribute('id') || 'Unbekannte Quelle';
+      const src = getMoroFrameSource(iframe) || iframe.getAttribute('id') || 'Unbekannte Quelle';
       
       if (!category && src && !src.startsWith('about:') && !src.startsWith('javascript:')) {
         unsafeIframes.push(src);
@@ -351,40 +278,8 @@ function initCookieIframes() {
      UI- & Helfer-Logik
      ------------------------- */
   function updateAcceptButtonState() {
-    if (!acceptBtn) return;
-    const accepted = getAcceptedCategories();
-    acceptBtn.removeEventListener('click', interceptClick, true);
-    acceptBtn.removeEventListener('touchstart', interceptClick, true);
-    if (accepted.length === 0) {
-      acceptBtn.addEventListener('click', interceptClick, true);
-      acceptBtn.addEventListener('touchstart', interceptClick, true);
-      acceptBtn.style.cursor = 'not-allowed';
-    } else {
-      acceptBtn.style.cursor = 'pointer';
-    }
-  }
-
-  // Wackeln und Klick abfangen
-  function interceptClick(e) {
-    if (e) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      wiggleOnce(e.currentTarget);
-    }
-  }
-
-  function wiggleOnce(btn) {
-    let i = 0;
-    const angles = [0, -10, 10, -8, 8, -5, 5, 0];
-    const interval = 30;
-    const wiggleInterval = setInterval(() => {
-      btn.style.transform = `rotate(${angles[i]}deg)`;
-      i++;
-      if (i >= angles.length) {
-        clearInterval(wiggleInterval);
-        btn.style.transform = 'none';
-      }
-    }, interval);
+    // Saving an empty selection is a valid withdrawal, just like "Decline".
+    if (acceptBtn) acceptBtn.style.cursor = 'pointer';
   }
 }
 
@@ -482,6 +377,7 @@ function createPlaceholder(el, src, width, height, altImg, category) {
   const placeholder = document.createElement('div');
   placeholder.className = 'iframe-placeholder';
   if (el.id) placeholder.id = el.id;
+  moroFrameTemplates.set(placeholder, el.cloneNode(false));
   
   const origStyle = el.getAttribute('data-orig-style') || el.getAttribute('style') || '';
   const origClass = el.getAttribute('data-orig-class') || el.className || '';
@@ -581,60 +477,67 @@ function createPlaceholder(el, src, width, height, altImg, category) {
   if (el.parentNode) el.parentNode.replaceChild(placeholder, el);
 }
 
+// Preserve sandbox, allow, title and other attributes across consent changes.
+function getMoroFrameSource(iframe) {
+  return iframe.getAttribute('data-src') || iframe.getAttribute('src') || '';
+}
+
+function blockMoroIframe(iframe) {
+  const src = getMoroFrameSource(iframe);
+  if (!src || /^(about:|javascript:)/i.test(src.trim())) return;
+  const dimension = value => {
+    if (!value || value === 'auto') return '100%';
+    return /^\d+$/.test(value) ? value + 'px' : value;
+  };
+  const category = iframe.getAttribute('cookiecategory') ||
+    iframe.getAttribute('data-cookiecategory') || 'nicht-definiert';
+  createPlaceholder(
+    iframe, src,
+    dimension(iframe.getAttribute('width') || iframe.style.width),
+    dimension(iframe.getAttribute('height') || iframe.style.height),
+    iframe.getAttribute('alt-img') || iframe.getAttribute('data-alt-img'),
+    category
+  );
+}
+
 function enableIframes(acceptedCategories = []) {
-  document.querySelectorAll('.iframe-placeholder').forEach(function(div) {
+  document.querySelectorAll('.iframe-placeholder').forEach(div => {
     const category = div.getAttribute('data-cookiecategory');
-    
-    if (category && category !== 'nicht-definiert' && acceptedCategories.includes(category)) {
-      const iframe = document.createElement('iframe');
-      if (div.id) iframe.id = div.id;
-      iframe.src = div.getAttribute('data-src');
-      iframe.setAttribute('width', div.getAttribute('data-width'));
-      iframe.setAttribute('height', div.getAttribute('data-height'));
-      const altImg = div.getAttribute('data-alt-img');
-      if (altImg) iframe.setAttribute('alt-img', altImg);
-      iframe.setAttribute('cookiecategory', category);
-      
-      const origStyle = div.getAttribute('data-orig-style');
-      const origClass = div.getAttribute('data-orig-class');
-      if (origStyle) iframe.setAttribute('style', origStyle);
-      if (origClass) iframe.className = origClass;
-      else iframe.style.border = '0';
-      
-      if (div.parentNode) div.parentNode.replaceChild(iframe, div);
+    if (!['funktional', 'targeting'].includes(category) || !acceptedCategories.includes(category)) return;
+    const src = div.getAttribute('data-src');
+    if (!src) return;
+    const template = moroFrameTemplates.get(div);
+    const iframe = template ? template.cloneNode(false) : document.createElement('iframe');
+    if (div.id) iframe.id = div.id;
+    iframe.setAttribute('cookiecategory', category);
+    iframe.setAttribute('data-src', src);
+    if (!template) {
+      iframe.setAttribute('width', div.getAttribute('data-width') || '100%');
+      iframe.setAttribute('height', div.getAttribute('data-height') || '100%');
+      iframe.setAttribute('style', div.getAttribute('data-orig-style') || 'border:0');
+      iframe.className = div.getAttribute('data-orig-class') || '';
     }
+    iframe.setAttribute('src', src);
+    if (div.parentNode) div.parentNode.replaceChild(iframe, div);
   });
 }
 
-function showPlaceholders() {
-  document.querySelectorAll('iframe, .iframe-placeholder').forEach(function(el) {
-    function cleanDim(val) {
-      if (!val || val === 'auto') return '100%'; // FIX: Verhindert den <svg> "auto" Fehler
-      val = val.toString().trim();
-      if (/^\d+$/.test(val)) return val + 'px';
-      return val;
-    }
-
-    if (el.tagName === 'IFRAME') {
-      const src = el.getAttribute('data-src') || el.src;
-      const width = cleanDim(el.getAttribute('data-width') || el.width || '100%');
-      const height = cleanDim(el.getAttribute('data-height') || el.height || '100%');
-      const altImg = el.getAttribute('alt-img') || el.getAttribute('data-alt-img');
-      const category = el.getAttribute('cookiecategory') || el.getAttribute('data-cookiecategory') || 'nicht-definiert';
-      
-      const origStyle = el.getAttribute('style') || '';
-      const origClass = el.className || '';
-      el.setAttribute('data-orig-style', origStyle);
-      el.setAttribute('data-orig-class', origClass);
-      
-      createPlaceholder(el, src, width, height, altImg, category);
-    } else if (el.tagName === 'DIV') {
-      const altImg = el.getAttribute('data-alt-img');
-      const width = cleanDim(el.getAttribute('data-width') || '100%');
-      const height = cleanDim(el.getAttribute('data-height') || '100%');
-      const src = el.getAttribute('data-src') || '';
-      const category = el.getAttribute('data-cookiecategory') || 'nicht-definiert';
-      createPlaceholder(el, src, width, height, altImg, category);
+function syncIframes(acceptedCategories = []) {
+  document.querySelectorAll('iframe[src], iframe[data-src]').forEach(iframe => {
+    const src = getMoroFrameSource(iframe);
+    if (!src || /^(about:|javascript:)/i.test(src.trim())) return;
+    const category = iframe.getAttribute('cookiecategory') || iframe.getAttribute('data-cookiecategory');
+    const allowed = ['funktional', 'targeting'].includes(category) && acceptedCategories.includes(category);
+    if (!allowed) {
+      blockMoroIframe(iframe);
+    } else if (iframe.getAttribute('src') !== src) {
+      // data-src is inert until the corresponding category has been accepted.
+      iframe.setAttribute('src', src);
     }
   });
+  enableIframes(acceptedCategories);
+}
+
+function showPlaceholders() {
+  syncIframes([]);
 }
