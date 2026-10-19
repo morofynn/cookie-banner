@@ -1,6 +1,6 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.5.8 (Consent revocation + deferred iframe loading)
+   v2.5.9 (Native + Webflow checkbox compatibility)
    ------------------------- */
 
 const moroFrameTemplates = new WeakMap();
@@ -12,6 +12,7 @@ if (document.readyState === 'loading') {
 }
 
 function initCookieIframes() {
+  ensureNativeCheckboxStyles();
   
   // 🔍 START UNIVERSAL-DIAGNOSE (Scannt GTM & iFrames)
   runMoroDiagnostics();
@@ -71,8 +72,12 @@ function initCookieIframes() {
   }
 
   ['funktional','targeting'].forEach(category => {
-    const input = document.querySelector('.opt-in-wrapper.is-' + category + ' input[type="checkbox"]');
-    if (input) input.addEventListener('change', updateAcceptButtonState);
+    getCheckboxControls(category).forEach(({ input }) => {
+      input.addEventListener('change', function() {
+        setCategoryCheckboxState(category, input.checked);
+        updateAcceptButtonState();
+      });
+    });
   });
 
   updateAcceptButtonState();
@@ -285,60 +290,89 @@ function initCookieIframes() {
 
 function setVisualPrechecked() {
   ['funktional','targeting'].forEach(category => {
-    const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
-    if (wrapper) {
-      const visual = wrapper.querySelector('.w-checkbox-input');
-      if (visual) visual.classList.add('w--redirected-checked');
-      const input = wrapper.querySelector('input[type="checkbox"]');
-      if (input) input.checked = true;
-    }
+    setCategoryCheckboxState(category, true);
   });
 }
 
 function precheckedToChecked() {
   ['funktional','targeting'].forEach(category => {
-    const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
-    if (wrapper) {
-      const visual = wrapper.querySelector('.w-checkbox-input');
-      const input = wrapper.querySelector('input[type="checkbox"]');
-      if (visual && visual.classList.contains('w--redirected-checked') && input) {
-        input.checked = true;
-      }
-    }
+    const checked = getCheckboxControls(category).some(({ input, visual }) =>
+      input.checked || visual?.classList.contains('w--redirected-checked')
+    );
+    setCategoryCheckboxState(category, checked);
   });
 }
 
 function getAcceptedCategories() {
   const categories = [];
   ['funktional','targeting'].forEach(category => {
-    const input = document.querySelector('.opt-in-wrapper.is-' + category + ' input[type="checkbox"]');
-    if (input?.checked) categories.push(category);
+    if (getCheckboxControls(category).some(({ input }) => input.checked)) {
+      categories.push(category);
+    }
   });
   return categories;
 }
 
 function setCheckboxes(categories) {
   ['funktional','targeting'].forEach(category => {
-    const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
-    const input = wrapper?.querySelector('input[type="checkbox"]');
-    const visual = wrapper?.querySelector('.w-checkbox-input');
-    if (!wrapper || !input || !visual) return;
-    const checked = categories.includes(category);
-    input.checked = checked;
-    if (checked) visual.classList.add('w--redirected-checked');
-    else visual.classList.remove('w--redirected-checked');
+    setCategoryCheckboxState(category, categories.includes(category));
   });
 }
 
 function resetCheckboxes() {
   ['funktional','targeting'].forEach(category => {
-    const wrapper = document.querySelector('.opt-in-wrapper.is-' + category);
-    if (!wrapper) return;
-    const input = wrapper.querySelector('input[type="checkbox"]');
-    const visual = wrapper.querySelector('.w-checkbox-input');
-    if (input) input.checked = false;
-    if (visual) visual.classList.remove('w--redirected-checked');
+    setCategoryCheckboxState(category, false);
   });
+}
+
+function getCheckboxControls(category) {
+  return Array.from(document.querySelectorAll('.opt-in-wrapper.is-' + category))
+    .map(wrapper => ({
+      wrapper,
+      input: wrapper.querySelector('input[type="checkbox"]'),
+      visual: wrapper.querySelector('.w-checkbox-input')
+    }))
+    .filter(control => control.input);
+}
+
+function setCategoryCheckboxState(category, checked) {
+  getCheckboxControls(category).forEach(({ input, visual }) => {
+    input.checked = checked;
+    if (visual) visual.classList.toggle('w--redirected-checked', checked);
+  });
+}
+
+function ensureNativeCheckboxStyles() {
+  if (document.getElementById('moro-native-checkbox-styles')) return;
+
+  const style = document.createElement('style');
+  style.id = 'moro-native-checkbox-styles';
+  style.textContent = `
+    .opt-in-wrapper:not(.w-checkbox) input[type="checkbox"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 23.0625px;
+      height: 23.0625px;
+      margin: 0;
+      flex: 0 0 23.0625px;
+      border: 2px solid #cd5d3f;
+      border-radius: 8px;
+      background-color: rgba(250, 235, 220, 0.84);
+      background-position: 50% 50%;
+      background-repeat: no-repeat;
+      background-size: cover;
+      cursor: pointer;
+    }
+    .opt-in-wrapper:not(.w-checkbox) input[type="checkbox"]:checked {
+      background-color: #cd5d3f;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m3 8 3 3 7-7'/%3E%3C/svg%3E");
+    }
+    .opt-in-wrapper:not(.w-checkbox) input[type="checkbox"]:focus-visible {
+      outline: 2px solid #cd5d3f;
+      outline-offset: 3px;
+    }
+  `;
+  document.head.appendChild(style);
 }
 
 function getCategoryLabelText(category) {
