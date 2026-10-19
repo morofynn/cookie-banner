@@ -13,6 +13,7 @@ if (document.readyState === 'loading') {
 
 function initCookieIframes() {
   ensureNativeCheckboxStyles();
+  prepareNativeCheckboxes();
   
   // 🔍 START UNIVERSAL-DIAGNOSE (Scannt GTM & iFrames)
   runMoroDiagnostics();
@@ -373,6 +374,30 @@ function ensureNativeCheckboxStyles() {
     }
   `;
   document.head.appendChild(style);
+}
+
+function prepareNativeCheckboxes() {
+  ['funktional','targeting'].forEach(category => {
+    getCheckboxControls(category).forEach(({ wrapper, input, visual }) => {
+      if (visual) return;
+
+      input.id = 'cookie-' + category;
+      const label = wrapper.querySelector('.opt-in-label');
+      const labelText = label?.textContent?.trim();
+      if (labelText && !input.getAttribute('aria-label')) {
+        input.setAttribute('aria-label', labelText);
+      }
+
+      // New banners can use a plain Webflow block while they are being migrated.
+      // Keep the label text clickable until that wrapper is changed to <label>.
+      if (label && wrapper.tagName !== 'LABEL') {
+        label.style.cursor = 'pointer';
+        label.addEventListener('click', function() {
+          input.click();
+        });
+      }
+    });
+  });
 }
 
 function getCategoryLabelText(category) {
