@@ -12,7 +12,6 @@ if (document.readyState === 'loading') {
 }
 
 function initCookieIframes() {
-  ensureNativeCheckboxStyles();
   prepareNativeCheckboxes();
   
   // 🔍 START UNIVERSAL-DIAGNOSE (Scannt GTM & iFrames)
@@ -339,41 +338,9 @@ function getCheckboxControls(category) {
 function setCategoryCheckboxState(category, checked) {
   getCheckboxControls(category).forEach(({ input, visual }) => {
     input.checked = checked;
+    input.classList.toggle('is-checked', checked);
     if (visual) visual.classList.toggle('w--redirected-checked', checked);
   });
-}
-
-function ensureNativeCheckboxStyles() {
-  if (document.getElementById('moro-native-checkbox-styles')) return;
-
-  const style = document.createElement('style');
-  style.id = 'moro-native-checkbox-styles';
-  style.textContent = `
-    .opt-in-wrapper:not(.w-checkbox) input[type="checkbox"] {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 23.0625px;
-      height: 23.0625px;
-      margin: 0;
-      flex: 0 0 23.0625px;
-      border: 2px solid #cd5d3f;
-      border-radius: 8px;
-      background-color: rgba(250, 235, 220, 0.84);
-      background-position: 50% 50%;
-      background-repeat: no-repeat;
-      background-size: cover;
-      cursor: pointer;
-    }
-    .opt-in-wrapper:not(.w-checkbox) input[type="checkbox"]:checked {
-      background-color: #cd5d3f;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m3 8 3 3 7-7'/%3E%3C/svg%3E");
-    }
-    .opt-in-wrapper:not(.w-checkbox) input[type="checkbox"]:focus-visible {
-      outline: 2px solid #cd5d3f;
-      outline-offset: 3px;
-    }
-  `;
-  document.head.appendChild(style);
 }
 
 function prepareNativeCheckboxes() {
