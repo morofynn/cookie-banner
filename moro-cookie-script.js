@@ -363,6 +363,17 @@ function prepareCheckboxes() {
         });
       }
 
+      // Older Webflow exports can leave the visible checkbox disconnected from
+      // the hidden input. Handle that visual control before Webflow's proxy.
+      if (visual) {
+        visual.addEventListener('click', function(event) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          input.checked = !input.checked;
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        }, true);
+      }
+
     });
   });
 }
