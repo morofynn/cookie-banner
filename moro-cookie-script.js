@@ -1,9 +1,12 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.5.10 (Unified legacy Webflow checkbox interaction)
+   v2.5.11 (Stable legacy Webflow checkbox interaction)
    ------------------------- */
 
 const moroFrameTemplates = new WeakMap();
+window.moroCookieBannerVersion = '2.5.11';
+document.documentElement.setAttribute('data-moro-cookie-version', '2.5.11');
+let moroLegacyCheckboxDelegationInstalled = false;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initCookieIframes);
@@ -13,6 +16,7 @@ if (document.readyState === 'loading') {
 
 function initCookieIframes() {
   prepareCheckboxes();
+  installLegacyCheckboxDelegation();
   
   // 🔍 START UNIVERSAL-DIAGNOSE (Scannt GTM & iFrames)
   runMoroDiagnostics();
@@ -363,30 +367,48 @@ function prepareCheckboxes() {
         });
       }
 
-      // Older Webflow exports handle the visible box, label text and hidden
-      // input separately. Remember the intended state before Webflow's
-      // document-level click proxy runs, then apply that state exactly once.
-      if (visual) {
-        let intendedChecked = null;
-        wrapper.addEventListener('pointerdown', function() {
-          intendedChecked = !input.checked;
-        }, true);
-        wrapper.addEventListener('keydown', function(event) {
-          if (event.key === ' ' || event.key === 'Enter') {
-            intendedChecked = !input.checked;
-          }
-        }, true);
-        wrapper.addEventListener('click', function(event) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          input.checked = intendedChecked === null ? !input.checked : intendedChecked;
-          intendedChecked = null;
-          input.dispatchEvent(new Event('change', { bubbles: true }));
-        }, true);
-      }
-
     });
   });
+}
+
+function installLegacyCheckboxDelegation() {
+  if (moroLegacyCheckboxDelegationInstalled) return;
+  moroLegacyCheckboxDelegationInstalled = true;
+  const intendedStates = new WeakMap();
+
+  function getLegacyControl(target) {
+    const wrapper = target.closest?.('.opt-in-wrapper.is-funktional, .opt-in-wrapper.is-targeting');
+    if (!wrapper || !wrapper.querySelector('.w-checkbox-input')) return null;
+    const input = wrapper.querySelector('input[type="checkbox"]');
+    if (!input) return null;
+    const category = wrapper.classList.contains('is-funktional') ? 'funktional' : 'targeting';
+    return { wrapper, input, category };
+  }
+
+  document.addEventListener('pointerdown', function(event) {
+    const control = getLegacyControl(event.target);
+    if (control) intendedStates.set(control.wrapper, !control.input.checked);
+  }, true);
+
+  document.addEventListener('keydown', function(event) {
+    if (event.key !== ' ' && event.key !== 'Enter') return;
+    const control = getLegacyControl(event.target);
+    if (control) intendedStates.set(control.wrapper, !control.input.checked);
+  }, true);
+
+  document.addEventListener('click', function(event) {
+    const control = getLegacyControl(event.target);
+    if (!control) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const checked = intendedStates.has(control.wrapper)
+      ? intendedStates.get(control.wrapper)
+      : !control.input.checked;
+    intendedStates.delete(control.wrapper);
+    control.input.checked = checked;
+    control.input.dispatchEvent(new Event('change', { bubbles: true }));
+    setCategoryCheckboxState(control.category, checked);
+  }, true);
 }
 
 function getCategoryLabelText(category) {
