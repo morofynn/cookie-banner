@@ -363,10 +363,10 @@ function prepareCheckboxes() {
         });
       }
 
-      // Older Webflow exports can leave the visible checkbox disconnected from
-      // the hidden input. Handle that visual control before Webflow's proxy.
+      // Older Webflow exports handle the visible box, label text and hidden
+      // input separately. Own the complete wrapper click so it toggles once.
       if (visual) {
-        visual.addEventListener('click', function(event) {
+        wrapper.addEventListener('click', function(event) {
           event.preventDefault();
           event.stopImmediatePropagation();
           input.checked = !input.checked;
