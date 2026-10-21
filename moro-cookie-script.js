@@ -1,6 +1,6 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.5.9 (Native + Webflow checkbox compatibility)
+   v2.5.10 (Unified legacy Webflow checkbox interaction)
    ------------------------- */
 
 const moroFrameTemplates = new WeakMap();
@@ -364,12 +364,23 @@ function prepareCheckboxes() {
       }
 
       // Older Webflow exports handle the visible box, label text and hidden
-      // input separately. Own the complete wrapper click so it toggles once.
+      // input separately. Remember the intended state before Webflow's
+      // document-level click proxy runs, then apply that state exactly once.
       if (visual) {
+        let intendedChecked = null;
+        wrapper.addEventListener('pointerdown', function() {
+          intendedChecked = !input.checked;
+        }, true);
+        wrapper.addEventListener('keydown', function(event) {
+          if (event.key === ' ' || event.key === 'Enter') {
+            intendedChecked = !input.checked;
+          }
+        }, true);
         wrapper.addEventListener('click', function(event) {
           event.preventDefault();
           event.stopImmediatePropagation();
-          input.checked = !input.checked;
+          input.checked = intendedChecked === null ? !input.checked : intendedChecked;
+          intendedChecked = null;
           input.dispatchEvent(new Event('change', { bubbles: true }));
         }, true);
       }
