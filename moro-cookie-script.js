@@ -12,7 +12,7 @@ if (document.readyState === 'loading') {
 }
 
 function initCookieIframes() {
-  prepareNativeCheckboxes();
+  prepareCheckboxes();
   
   // 🔍 START UNIVERSAL-DIAGNOSE (Scannt GTM & iFrames)
   runMoroDiagnostics();
@@ -343,23 +343,31 @@ function setCategoryCheckboxState(category, checked) {
   });
 }
 
-function prepareNativeCheckboxes() {
+function prepareCheckboxes() {
   ['funktional','targeting'].forEach(category => {
-    getCheckboxControls(category).forEach(({ wrapper, input, visual }) => {
-      if (visual) return;
-
-      input.id = 'cookie-' + category;
+    getCheckboxControls(category).forEach(({ wrapper, input, visual }, index) => {
+      input.id = 'cookie-' + category + (index ? '-' + (index + 1) : '');
       const label = wrapper.querySelector('.opt-in-label');
       const labelText = label?.textContent?.trim();
+      if (label) label.setAttribute('for', input.id);
       if (labelText && !input.getAttribute('aria-label')) {
         input.setAttribute('aria-label', labelText);
       }
 
       // New banners can use a plain Webflow block while they are being migrated.
       // Keep the label text clickable until that wrapper is changed to <label>.
-      if (label && wrapper.tagName !== 'LABEL') {
+      if (!visual && label && wrapper.tagName !== 'LABEL') {
         label.style.cursor = 'pointer';
         label.addEventListener('click', function() {
+          input.click();
+        });
+      }
+
+      // Some Webflow pages no longer have Webflow's own checkbox proxy active.
+      // Make the visible legacy checkbox reliably toggle its real input.
+      if (visual) {
+        visual.addEventListener('click', function(event) {
+          event.preventDefault();
           input.click();
         });
       }
