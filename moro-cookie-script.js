@@ -363,14 +363,6 @@ function prepareCheckboxes() {
         });
       }
 
-      // Some Webflow pages no longer have Webflow's own checkbox proxy active.
-      // Make the visible legacy checkbox reliably toggle its real input.
-      if (visual) {
-        visual.addEventListener('click', function(event) {
-          event.preventDefault();
-          input.click();
-        });
-      }
     });
   });
 }
