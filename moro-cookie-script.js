@@ -1,12 +1,12 @@
 /* -------------------------
    Cookie Banner MORO
-   v2.5.11 (Stable legacy Webflow checkbox interaction)
+   v2.5.13 (Stable native and Webflow checkbox interaction)
    ------------------------- */
 
 const moroFrameTemplates = new WeakMap();
-window.moroCookieBannerVersion = '2.5.11';
-document.documentElement.setAttribute('data-moro-cookie-version', '2.5.11');
-let moroLegacyCheckboxDelegationInstalled = false;
+window.moroCookieBannerVersion = '2.5.13';
+document.documentElement.setAttribute('data-moro-cookie-version', '2.5.13');
+let moroCheckboxDelegationInstalled = false;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initCookieIframes);
@@ -16,7 +16,7 @@ if (document.readyState === 'loading') {
 
 function initCookieIframes() {
   prepareCheckboxes();
-  installLegacyCheckboxDelegation();
+  installCheckboxDelegation();
   
   // 🔍 START UNIVERSAL-DIAGNOSE (Scannt GTM & iFrames)
   runMoroDiagnostics();
@@ -362,23 +362,20 @@ function prepareCheckboxes() {
       // Keep the label text clickable until that wrapper is changed to <label>.
       if (!visual && label && wrapper.tagName !== 'LABEL') {
         label.style.cursor = 'pointer';
-        label.addEventListener('click', function() {
-          input.click();
-        });
       }
 
     });
   });
 }
 
-function installLegacyCheckboxDelegation() {
-  if (moroLegacyCheckboxDelegationInstalled) return;
-  moroLegacyCheckboxDelegationInstalled = true;
+function installCheckboxDelegation() {
+  if (moroCheckboxDelegationInstalled) return;
+  moroCheckboxDelegationInstalled = true;
   const intendedStates = new WeakMap();
 
-  function getLegacyControl(target) {
+  function getCheckboxControl(target) {
     const wrapper = target.closest?.('.opt-in-wrapper.is-funktional, .opt-in-wrapper.is-targeting');
-    if (!wrapper || !wrapper.querySelector('.w-checkbox-input')) return null;
+    if (!wrapper) return null;
     const input = wrapper.querySelector('input[type="checkbox"]');
     if (!input) return null;
     const category = wrapper.classList.contains('is-funktional') ? 'funktional' : 'targeting';
@@ -386,18 +383,18 @@ function installLegacyCheckboxDelegation() {
   }
 
   document.addEventListener('pointerdown', function(event) {
-    const control = getLegacyControl(event.target);
+    const control = getCheckboxControl(event.target);
     if (control) intendedStates.set(control.wrapper, !control.input.checked);
   }, true);
 
   document.addEventListener('keydown', function(event) {
     if (event.key !== ' ' && event.key !== 'Enter') return;
-    const control = getLegacyControl(event.target);
+    const control = getCheckboxControl(event.target);
     if (control) intendedStates.set(control.wrapper, !control.input.checked);
   }, true);
 
   document.addEventListener('click', function(event) {
-    const control = getLegacyControl(event.target);
+    const control = getCheckboxControl(event.target);
     if (!control) return;
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -405,9 +402,11 @@ function installLegacyCheckboxDelegation() {
       ? intendedStates.get(control.wrapper)
       : !control.input.checked;
     intendedStates.delete(control.wrapper);
-    control.input.checked = checked;
-    control.input.dispatchEvent(new Event('change', { bubbles: true }));
-    setCategoryCheckboxState(control.category, checked);
+    setTimeout(function() {
+      setCategoryCheckboxState(control.category, checked);
+      control.input.dispatchEvent(new Event('change', { bubbles: true }));
+      setCategoryCheckboxState(control.category, checked);
+    }, 0);
   }, true);
 }
 
